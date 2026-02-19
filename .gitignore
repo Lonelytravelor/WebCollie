@@ -18,3 +18,9 @@ web_app/flask.log
 
 # OS
 .DS_Store
+
+# Local env/secrets
+web_app/.llm.env
+
+# Tooling scratch
+web_app/.sisyphus/
