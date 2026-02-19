@@ -1,0 +1,39 @@
+Task: RD 自测 · 连续启动-驻留 真机回归 (Plan Task 7)
+Timestamp: 2026-02-14 21:10 CST
+
+Environment + Prep
+- adb devices → M7UK99ORHAMNEY6D (state=device)
+- Service health: curl http://127.0.0.1:5000/ → HTTP 200
+- Browser automation: Playwright MCP drove RD tab (device preset: HighLight, collectors: logcat only, bugreport: skip)
+
+Execution Timeline (job d4d00dcf)
+1. UI: 研发自测 → 连续启动-驻留 → 设备 “M7UK99ORHAMNEY6D · 26048RP6AC”
+2. Collectors: meminfo/vmstat/others disabled; bugreport mode switched to skip
+3. Clicked “启动连续启动-驻留”; job moved queued → running immediately
+4. Status API (curl /api/utilities/jobs/d4d00dcf) confirmed finished_at=20260214_205055, status=completed, progress=100
+5. UI artifact zone rendered manifest/html/logcat links (see screenshot evidence)
+6. Artifacts zip downloaded via GET /api/utilities/download/d4d00dcf/cont_startup_stay_artifacts.zip → .sisyphus/evidence/task-7-cont_startup_stay_artifacts.zip (1.55 MB)
+7. unzip → .sisyphus/evidence/task-7-cont_startup_artifacts/
+   • artifacts_manifest.json (schema v1, result=success, logcat-only collectors enabled)
+   • 冷启动分析报告.html (3.9 KB)
+   • logcat_14_20_50.txt (12.8 MB)
+   • stdout.log / stderr.log (tee console logs)
+   • residency_results/process_report.{html,txt} + bundled chart.min.js
+   • NOTE: manifest lists console_14_20_50.log (status=planned). Current build still writes stdout.log instead of renamed console_*.log – data intact but naming discrepancy remains.
+8. Offline check: grep -R "http\|https" 冷启动分析报告.html → no matches (report fully offline)
+
+Verification Commands
+- curl job status: curl -s http://127.0.0.1:5000/api/utilities/jobs/d4d00dcf
+- Download zip: curl -fSLo .sisyphus/evidence/task-7-cont_startup_stay_artifacts.zip http://127.0.0.1:5000/api/utilities/download/d4d00dcf/cont_startup_stay_artifacts.zip
+- Extract: unzip -o .sisyphus/evidence/task-7-cont_startup_stay_artifacts.zip -d .sisyphus/evidence/task-7-cont_startup_artifacts
+- HTML external link audit: grep -R "https\?://" .sisyphus/evidence/task-7-cont_startup_artifacts/冷启动分析报告.html
+- pytest regression: pytest -q  → 15 passed, 1 warning (importlib-resources deprecation)
+
+Evidence
+- Screenshot: .sisyphus/evidence/task-7-rd-cont-startup.png (captured with Playwright CLI by reloading job context + polling API to render logs)
+- Zip & extracted tree under .sisyphus/evidence/
+- Manifest + HTML + logcat/logs verified locally (see paths above)
+
+Issues / Notes
+- console log naming: manifest expects console_*.log but current output uses stdout.log. Functionality unaffected; mention if rename fix desired later.
+- Playwright MCP screenshot API timed out repeatedly; workaround: standalone Playwright script (chromium headless) that reused job id, opened RD UI, invoked window._pollUtilityJob() to rehydrate log panel, then grabbed full-page screenshot.

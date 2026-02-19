@@ -1,0 +1,20 @@
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Runtime/output
+web_app/results/
+web_app/uploads/
+web_app/user_data/
+web_app/web_app.log
+web_app/web_app_5001.log
+web_app/app.log
+web_app/flask.log
+
+# OS
+.DS_Store

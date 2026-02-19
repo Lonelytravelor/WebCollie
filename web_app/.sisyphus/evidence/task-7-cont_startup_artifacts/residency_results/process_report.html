@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>进程启动与查杀分析报告 - Summary</title>
+  <script src="chart.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background:#0b1118; color:#e6edf3; margin:0; padding:24px; }
+    .page { max-width:72vw; margin:0 auto; }
+    h1, h2 { margin: 0 0 10px; }
+    h3 { margin: 14px 0 8px; }
+    .section { margin-bottom: 28px; }
+    .cards.single { display:block; }
+    .card { background:#141c26; padding:12px 14px; border-radius:10px; border:1px solid #1f2a36; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
+    .card-wide { width:100%; box-sizing:border-box; }
+    .card-title { font-weight:700; color:#f5f7fb; margin-bottom:8px; letter-spacing:0.3px; }
+    .card-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #1b2634; }
+    .card-row:last-child { border-bottom:none; }
+    .row-label { color:#9fb3c8; font-size:13px; }
+    .row-value { color:#f5f7fb; font-weight:600; }
+    .chart-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+    .chart-card { background:#101821; border:1px solid #1f2a36; border-radius:12px; padding:10px; box-shadow:0 6px 18px rgba(0,0,0,0.35); position:relative; }
+    .chart-title { position:absolute; left:12px; top:10px; color:#9fb3c8; font-size:12px; letter-spacing:0.2px; }
+    .chart-card canvas { margin-top:18px; }
+    .timeline { border:1px solid #1f2a36; border-radius:12px; background:#101821; padding:10px; max-width:72%; margin:0 auto; }
+    .timeline-row { display:grid; grid-template-columns:120px 1fr; gap:8px; padding:6px 8px; border-bottom:1px solid #1b2634; align-items:center; }
+    .timeline-row:last-child { border-bottom:none; }
+    .tl-time { color:#cdd6e3; font-size:12px; letter-spacing:0.2px; }
+    .tl-content { display:flex; justify-content:space-between; width:100%; }
+    .tl-left { color:#f5f7fb; font-size:14px; text-align:left; min-height:1.2em; }
+    .tl-right { color:#f5f7fb; font-size:14px; text-align:right; min-height:1.2em; }
+    .tl-legend { display:flex; gap:8px; padding:4px 8px 8px 8px; }
+    .pill { padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; border:1px solid transparent; }
+    .pill-start { background:#123b26; color:#6cf0a7; border-color:#1f8a52; }
+    .pill-kill { background:#3b1a1a; color:#ffb1b1; border-color:#a54444; }
+    .pill-lmk { background:#2b2140; color:#d6b6ff; border-color:#6f4bb7; }
+    .hl-res-table-wrapper { max-width:72vw; margin:12px auto 0 auto; overflow-x:auto; }
+    .hl-res-table { width:100%; border-collapse: collapse; background:#101821; border:1px solid #1f2a36; }
+    .hl-res-table th, .hl-res-table td { padding:8px 10px; border-bottom:1px solid #1f2a36; text-align:left; color:#e6edf3; }
+    .hl-res-table th { color:#9fb3c8; font-size:12px; letter-spacing:0.3px; }
+    .hl-res-table tbody tr:hover { background:#142032; }
+    details summary { cursor:pointer; color:#8fb4ff; }
+    canvas { width:100%; height:240px; }
+    .accordion { border:1px solid #1f2a36; border-radius:12px; background:#0f1722; }
+    .acc-item { border-bottom:1px solid #1f2a36; }
+    .acc-item:last-child { border-bottom:none; }
+    .acc-header { padding:10px 12px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+    .acc-header:hover { background:#131c28; }
+    .acc-title { font-weight:600; color:#f5f7fb; }
+    .acc-meta { color:#9fb3c8; font-size:12px; }
+    .acc-body { display:none; padding:0 12px 12px 12px; font-size:13px; line-height:1.6; color:#d8e2f2; }
+    .kv { margin:2px 0; }
+    .kv strong { color:#8fb4ff; }
+    .pill { display:inline-block; padding:2px 8px; margin:2px 4px 2px 0; border-radius:999px; background:#16263a; color:#cfe1ff; font-size:12px; }
+    .headline-card { display:grid; grid-template-columns:60% 40%; gap:16px; background:#101821; border:1px solid #1f2a36; border-radius:12px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,0.35); margin-bottom:20px; }
+    .head-left, .head-right { display:flex; flex-direction:column; gap:10px; }
+    .head-title { color:#9fb3c8; font-size:13px; letter-spacing:0.4px; text-transform:uppercase; }
+    .head-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:10px; }
+    .head-item { background:#0f1722; border:1px solid #1f2a36; border-radius:10px; padding:10px; }
+    .hi-label { color:#9fb3c8; font-size:12px; }
+    .hi-val { font-size:22px; font-weight:700; color:#f5f7fb; }
+    .hi-val.danger { color:#ff8b8b; }
+    .hi-val.lmk { color:#d6b6ff; }
+    .head-big { background:#0f1722; border:1px solid #1f2a36; border-radius:10px; padding:12px; }
+    .big-line { font-size:18px; font-weight:700; color:#cfe1ff; display:flex; gap:8px; align-items:center; }
+    .head-sub { color:#9fb3c8; font-size:13px; display:flex; flex-direction:column; gap:4px; }
+    .head-micro { color:#9fb3c8; font-size:12px; line-height:1.4; }
+    .mem-table { width:100%; border-collapse: collapse; margin-top:6px; }
+    .mem-table th, .mem-table td { padding:6px 8px; border-bottom:1px solid #1f2a36; color:#e6edf3; font-size:12px; text-align:left; }
+    .mem-table th { color:#9fb3c8; font-weight:600; }
+    .mem-table tbody tr:hover { background:#142032; }
+    .mem-metric { color:#cfe1ff; font-weight:600; white-space:nowrap; }
+    .hl-run-table { width:100%; border-collapse:collapse; background:#101821; border:1px solid #1f2a36; }
+    .hl-run-table th, .hl-run-table td { padding:6px 8px; border-bottom:1px solid #1f2a36; color:#e6edf3; font-size:12px; text-align:left; }
+    .hl-run-table th { color:#9fb3c8; font-weight:600; }
+    .hl-run-table tbody tr:nth-child(odd) { background:#111b27; }
+  </style>
+</head>
+<body>
+  <div class="page">
+  <h1>进程启动与查杀分析报告（Summary）</h1>
+
+  <div class="headline-card">
+    <div class="head-left">
+      <div class="head-title">全部概览</div>
+      <div class="head-grid">
+        <div class="head-item"><div class="hi-label">事件总数</div><div class="hi-val">1349</div></div>
+        <div class="head-item"><div class="hi-label">启动</div><div class="hi-val">8</div></div>
+        <div class="head-item"><div class="hi-label">上层/一体化查杀</div><div class="hi-val danger">334</div></div>
+        <div class="head-item"><div class="hi-label">底层/LMKD 查杀</div><div class="hi-val lmk">141</div></div>
+        <div class="head-item span2"><div class="hi-label">释放内存(KB)</div><div class="hi-val">26,768,140</div></div>
+      </div>
+    </div>
+    <div class="head-right">
+      <div class="head-title">高亮主进程</div>
+      <div class="head-big">
+        <div class="big-line">kill <span class="hi-val danger">8</span></div>
+        <div class="big-line">lmk <span class="hi-val lmk">0</span></div>
+      </div>
+      <div class="head-sub">
+        <div>主进程 kill 187</div>
+        <div>主进程 lmk 122</div>
+      </div>
+        <div class="head-micro">
+        <div>高亮驻留均值：全量 0.0% | 前1 0.0% | 前2 0.0% | 前3 0.0% | 前4 0.0% | 前5 0.0%</div>
+        <div>平均存活数：0.00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards single">
+    <div class="card card-wide"><div class="card-title">内存统计 (KB)</div><div class="card-row"><span class="row-label">全部进程</span><span class="row-value"><div class='row-value'>样本 1256</div><table class='mem-table'><thead><tr><th>指标</th><th>Avg</th><th>P50</th><th>P95</th><th>Min</th><th>Max</th></tr></thead><tbody><tr><td class='mem-metric'>memfree</td><td>580269.5</td><td>106146.0</td><td>3196830.0</td><td>7692.0</td><td>4192612.0</td></tr><tr><td class='mem-metric'>file</td><td>2640898.0</td><td>2758424.0</td><td>3580646.0</td><td>191956.0</td><td>4203400.0</td></tr><tr><td class='mem-metric'>anon</td><td>1631600.3</td><td>1456766.0</td><td>3177719.0</td><td>353448.0</td><td>4727584.0</td></tr><tr><td class='mem-metric'>swapfree</td><td>5933122.8</td><td>6916768.0</td><td>7947500.0</td><td>37876.0</td><td>8184232.0</td></tr></tbody></table></span></div><div class="card-row"><span class="row-label">主进程</span><span class="row-value"><div class='row-value'>样本 1145</div><table class='mem-table'><thead><tr><th>指标</th><th>Avg</th><th>P50</th><th>P95</th><th>Min</th><th>Max</th></tr></thead><tbody><tr><td class='mem-metric'>memfree</td><td>623696.3</td><td>106404.0</td><td>3243250.4</td><td>7692.0</td><td>4192612.0</td></tr><tr><td class='mem-metric'>file</td><td>2619382.5</td><td>2748476.0</td><td>3601792.0</td><td>191956.0</td><td>4203400.0</td></tr><tr><td class='mem-metric'>anon</td><td>1649245.4</td><td>1464100.0</td><td>3199791.2</td><td>353448.0</td><td>4727584.0</td></tr><tr><td class='mem-metric'>swapfree</td><td>5819135.3</td><td>6912108.0</td><td>7938029.6</td><td>37876.0</td><td>8184232.0</td></tr></tbody></table></span></div><div class="card-row"><span class="row-label">高亮主进程(主)</span><span class="row-value"><div class='row-value'>无数据</div></span></div><div class="card-row"><span class="row-label">触发事件</span><span class="row-value"><div class='row-value'>样本 866</div><table class='mem-table'><thead><tr><th>指标</th><th>Avg</th><th>P50</th><th>P95</th><th>Min</th><th>Max</th></tr></thead><tbody><tr><td class='mem-metric'>memfree</td><td>772875.3</td><td>106840.0</td><td>3331430.0</td><td>7692.0</td><td>4192612.0</td></tr><tr><td class='mem-metric'>file</td><td>2517745.0</td><td>2666510.0</td><td>3612931.0</td><td>191956.0</td><td>4203400.0</td></tr><tr><td class='mem-metric'>anon</td><td>1718673.6</td><td>1463574.0</td><td>3301898.0</td><td>353448.0</td><td>4727584.0</td></tr><tr><td class='mem-metric'>swapfree</td><td>5355016.9</td><td>6735864.0</td><td>7654950.0</td><td>37876.0</td><td>8184232.0</td></tr></tbody></table></span></div></div>
+  </div>
+
+  <div class="section">
+    <h2>全部</h2>
+    <div class="cards single"><div class="card card-wide"><div class="card-title">全部</div><div class="card-row"><span class="row-label">事件总数</span><span class="row-value">1349</span></div><div class="card-row"><span class="row-label">启动</span><span class="row-value">8</span></div><div class="card-row"><span class="row-label">上层/一体化查杀</span><span class="row-value">334</span></div><div class="card-row"><span class="row-label">底层/LMKD查杀</span><span class="row-value">141</span></div><div class="card-row"><span class="row-label">触发</span><span class="row-value">866</span></div><div class="card-row"><span class="row-label">跳过</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">释放内存(KB)</span><span class="row-value">26,768,140</span></div></div></div>
+    <div class="chart-grid">
+      <div class="chart-card"><div class="chart-title">查杀类型分布（NPW/EPW/…）</div><canvas id="chartKillType"></canvas></div>
+      <div class="chart-card"><div class="chart-title">一体化分数分布（minScore）</div><canvas id="chartMinScore"></canvas></div>
+      <div class="chart-card"><div class="chart-title">上层/一体化查杀 adj 分布</div><canvas id="chartAdj"></canvas></div>
+      <div class="chart-card"><div class="chart-title">底层/LMKD 查杀原因</div><canvas id="chartLmkReason"></canvas></div>
+      <div class="chart-card"><div class="chart-title">底层/LMKD 查杀 adj 分布</div><canvas id="chartLmkAdj"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>主进程</h2>
+    <div class="cards single">
+      <div class="card card-wide"><div class="card-title">主进程</div><div class="card-row"><span class="row-label">事件总数</span><span class="row-value">309</span></div><div class="card-row"><span class="row-label">启动</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">上层/一体化查杀</span><span class="row-value">187</span></div><div class="card-row"><span class="row-label">底层/LMKD查杀</span><span class="row-value">122</span></div><div class="card-row"><span class="row-label">触发</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">跳过</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">释放内存(KB)</span><span class="row-value">26,768,140</span></div></div>
+    </div>
+    <div class="cards single">
+      <div class="card card-wide">
+        <div class="card-title">高亮主进程启动/驻留表（前两轮）</div>
+        <div style="overflow-x:auto;">
+          <table class="hl-run-table">
+            <thead>
+              <tr>
+                <th>进程</th>
+                <th>第2轮冷启动</th>
+                <th>启动1</th>
+                <th>被杀1</th>
+                <th>驻留1</th>
+                <th>启动2</th>
+                <th>被杀2</th>
+                <th>驻留2</th>
+                <th>平均驻留</th>
+              </tr>
+            </thead>
+            <tbody><tr><td>com.ss.android.ugc.aweme</td><td>是</td><td>02-14 14:38:45</td><td>02-14 14:39:10</td><td>24s</td><td>02-14 14:39:22</td><td>02-14 14:53:47</td><td>14m25s</td><td>7m24s</td></tr><tr><td>com.ss.android.article.news</td><td>无第二轮</td><td>02-14 13:02:39</td><td>02-14 14:10:34</td><td>1h7m55s</td><td>-</td><td>-</td><td>-</td><td>1h7m55s</td></tr><tr><td>com.duowan.kiwi</td><td>无第二轮</td><td>02-14 20:30:39</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card"><div class="chart-title">查杀类型分布（主进程）</div><canvas id="chartMainKillType"></canvas></div>
+      <div class="chart-card"><div class="chart-title">一体化分数分布（主进程）</div><canvas id="chartMainMinScore"></canvas></div>
+      <div class="chart-card"><div class="chart-title">上层/一体化查杀 adj（主进程）</div><canvas id="chartMainAdj"></canvas></div>
+      <div class="chart-card"><div class="chart-title">底层/LMKD 查杀 adj（主进程）</div><canvas id="chartMainLmkAdj"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>高亮主进程</h2>
+    <div class="cards single">
+      <div class="card card-wide"><div class="card-title">高亮主进程</div><div class="card-row"><span class="row-label">事件总数</span><span class="row-value">8</span></div><div class="card-row"><span class="row-label">启动</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">上层/一体化查杀</span><span class="row-value">8</span></div><div class="card-row"><span class="row-label">底层/LMKD查杀</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">触发</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">跳过</span><span class="row-value">0</span></div><div class="card-row"><span class="row-label">释放内存(KB)</span><span class="row-value">26,768,140</span></div></div>
+    </div>
+    <div class="cards single">
+      <div class="card card-wide">
+        <div class="card-title">高亮主进程驻留</div>
+        <div class="card-row"><span class="row-label">平均驻留时长</span><span class="row-value">18m24s</span></div>
+        <div class="card-row"><span class="row-label">当前仍存活</span><span class="row-value">com.duowan.kiwi</span></div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card"><div class="chart-title">查杀类型分布（高亮主进程）</div><canvas id="chartHlKillType"></canvas></div>
+      <div class="chart-card"><div class="chart-title">一体化分数分布（高亮主进程）</div><canvas id="chartHlMinScore"></canvas></div>
+      <div class="chart-card"><div class="chart-title">上层/一体化查杀 adj（高亮主进程）</div><canvas id="chartHlAdj"></canvas></div>
+      <div class="chart-card"><div class="chart-title">底层/LMKD 查杀 adj（高亮主进程）</div><canvas id="chartHlLmkAdj"></canvas></div>
+    </div>
+    <h3>高亮主进程明细（可展开）</h3>
+    <div class="accordion" id="hlAccordion"><div class="acc-item"><div class="acc-header" data-target="acc-0"><div class="acc-title">com.ss.android.ugc.aweme</div><div class="acc-meta">kill 4 | lmk 0</div></div><div class="acc-body" id="acc-0"><div class="kv"><strong>KillType:</strong> <span class="pill">am_kill:4</span></div><div class="kv"><strong>adj(kill):</strong> <span class="pill">400:3</span> <span class="pill">0:1</span></div><div class="kv"><strong>adj(lmk):</strong> 无</div><div class="kv"><strong>事件详情(按adj分组):</strong></div><div class="acc-item"><div class="acc-header" data-target="acc-0-adj-0"><div class="acc-title">adj 400</div><div class="acc-meta">数量 3 (kill 3, lmk 0)</div></div><div class="acc-body" id="acc-0-adj-0"><details><summary>事件 1003 (kill)</summary><pre>事件 1003
+02-14 14:39:10.130  查杀  com.ss.android.ugc.aweme
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 738316 KB
+  进程信息:
+    UID: 0, PID: 680 [主进程]
+    进程优先级: 400
+    评分: 
+    PSS内存: 738316 KB
+    交换内存:  KB
+    实际释放内存: 738316 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details><details><summary>事件 1135 (kill)</summary><pre>事件 1135
+02-14 14:56:57.032  查杀  com.ss.android.ugc.aweme
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 1188984 KB
+  进程信息:
+    UID: 0, PID: 10144 [主进程]
+    进程优先级: 400
+    评分: 
+    PSS内存: 1188984 KB
+    交换内存:  KB
+    实际释放内存: 1188984 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details><details><summary>事件 1293 (kill)</summary><pre>事件 1293
+02-14 16:12:37.143  查杀  com.ss.android.ugc.aweme
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 203648 KB
+  进程信息:
+    UID: 0, PID: 11422 [主进程]
+    进程优先级: 400
+    评分: 
+    PSS内存: 203648 KB
+    交换内存:  KB
+    实际释放内存: 203648 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details></div></div><div class="acc-item"><div class="acc-header" data-target="acc-0-adj-1"><div class="acc-title">adj 0</div><div class="acc-meta">数量 1 (kill 1, lmk 0)</div></div><div class="acc-body" id="acc-0-adj-1"><details><summary>事件 1131 (kill)</summary><pre>事件 1131
+02-14 14:53:47.527  查杀  com.ss.android.ugc.aweme
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 1244764 KB
+  进程信息:
+    UID: 0, PID: 5491 [主进程]
+    进程优先级: 0
+    评分: 
+    PSS内存: 1244764 KB
+    交换内存:  KB
+    实际释放内存: 1244764 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details></div></div></div></div><div class="acc-item"><div class="acc-header" data-target="acc-1"><div class="acc-title">com.ss.android.article.news</div><div class="acc-meta">kill 2 | lmk 0</div></div><div class="acc-body" id="acc-1"><div class="kv"><strong>KillType:</strong> <span class="pill">am_kill:2</span></div><div class="kv"><strong>adj(kill):</strong> <span class="pill">400:1</span> <span class="pill">705:1</span></div><div class="kv"><strong>adj(lmk):</strong> 无</div><div class="kv"><strong>事件详情(按adj分组):</strong></div><div class="acc-item"><div class="acc-header" data-target="acc-1-adj-0"><div class="acc-title">adj 400</div><div class="acc-meta">数量 1 (kill 1, lmk 0)</div></div><div class="acc-body" id="acc-1-adj-0"><details><summary>事件 850 (kill)</summary><pre>事件 850
+02-14 14:10:34.181  查杀  com.ss.android.article.news
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 173432 KB
+  进程信息:
+    UID: 0, PID: 5748 [主进程]
+    进程优先级: 400
+    评分: 
+    PSS内存: 173432 KB
+    交换内存:  KB
+    实际释放内存: 173432 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details></div></div><div class="acc-item"><div class="acc-header" data-target="acc-1-adj-1"><div class="acc-title">adj 705</div><div class="acc-meta">数量 1 (kill 1, lmk 0)</div></div><div class="acc-body" id="acc-1-adj-1"><details><summary>事件 1292 (kill)</summary><pre>事件 1292
+02-14 16:12:37.091  查杀  com.ss.android.article.news
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 0 KB
+  进程信息:
+    UID: 0, PID: 17443 [主进程]
+    进程优先级: 705
+    评分: 
+    PSS内存: 0 KB
+    交换内存:  KB
+    实际释放内存: 0 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details></div></div></div></div><div class="acc-item"><div class="acc-header" data-target="acc-2"><div class="acc-title">com.xunmeng.pinduoduo</div><div class="acc-meta">kill 1 | lmk 0</div></div><div class="acc-body" id="acc-2"><div class="kv"><strong>KillType:</strong> <span class="pill">am_kill:1</span></div><div class="kv"><strong>adj(kill):</strong> <span class="pill">400:1</span></div><div class="kv"><strong>adj(lmk):</strong> 无</div><div class="kv"><strong>事件详情(按adj分组):</strong></div><div class="acc-item"><div class="acc-header" data-target="acc-2-adj-0"><div class="acc-title">adj 400</div><div class="acc-meta">数量 1 (kill 1, lmk 0)</div></div><div class="acc-body" id="acc-2-adj-0"><details><summary>事件 1287 (kill)</summary><pre>事件 1287
+02-14 16:12:36.898  查杀  com.xunmeng.pinduoduo
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 254976 KB
+  进程信息:
+    UID: 0, PID: 18411 [主进程]
+    进程优先级: 400
+    评分: 
+    PSS内存: 254976 KB
+    交换内存:  KB
+    实际释放内存: 254976 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details></div></div></div></div><div class="acc-item"><div class="acc-header" data-target="acc-3"><div class="acc-title">com.dragon.read</div><div class="acc-meta">kill 1 | lmk 0</div></div><div class="acc-body" id="acc-3"><div class="kv"><strong>KillType:</strong> <span class="pill">am_kill:1</span></div><div class="kv"><strong>adj(kill):</strong> <span class="pill">706:1</span></div><div class="kv"><strong>adj(lmk):</strong> 无</div><div class="kv"><strong>事件详情(按adj分组):</strong></div><div class="acc-item"><div class="acc-header" data-target="acc-3-adj-0"><div class="acc-title">adj 706</div><div class="acc-meta">数量 1 (kill 1, lmk 0)</div></div><div class="acc-body" id="acc-3-adj-0"><details><summary>事件 1290 (kill)</summary><pre>事件 1290
+02-14 16:12:36.998  查杀  com.dragon.read
+  查杀信息:
+    查杀类型: am_kill (am_kill)
+    可查杀最低分值:  ()
+    可查杀进程数: 
+    重要应用数量: 
+    本次已清理进程数: 1
+    已清理重要进程数: 
+    跳过计数: 
+    目标内存:  KB
+    需要释放内存:  KB
+    已释放内存: 0 KB
+  进程信息:
+    UID: 0, PID: 17654 [主进程]
+    进程优先级: 706
+    评分: 
+    PSS内存: 0 KB
+    交换内存:  KB
+    实际释放内存: 0 KB
+  当前内存信息:
+    空闲内存:  KB
+    可用内存:  KB
+    文件缓存:  KB
+    匿名内存:  KB
+    空闲交换区:  KB
+    CMA空闲内存:  KB
+--------------------------------------------------------------------------------</pre></details></div></div></div></div></div>
+    <h3>高亮主进程时间线</h3>
+    <div class="timeline"><div class="tl-legend"><span class="pill pill-start">启动应用</span><span class="pill pill-kill">上层/一体化</span><span class="pill pill-lmk">底层/LMKD</span></div><div class="timeline-row"><div class="tl-time">02-14 13:02:39.125</div><div class="tl-content"><span class="tl-left"><span class="pill pill-start">启动应用</span>&nbsp;com.ss.android.article.news</span><span class="tl-right"></span></div></div><div class="timeline-row"><div class="tl-time">02-14 14:10:34.181</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.ss.android.article.news&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 14:38:45.955</div><div class="tl-content"><span class="tl-left"><span class="pill pill-start">启动应用</span>&nbsp;com.ss.android.ugc.aweme</span><span class="tl-right"></span></div></div><div class="timeline-row"><div class="tl-time">02-14 14:39:10.130</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.ss.android.ugc.aweme&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 14:39:22.426</div><div class="tl-content"><span class="tl-left"><span class="pill pill-start">启动应用</span>&nbsp;com.ss.android.ugc.aweme</span><span class="tl-right"></span></div></div><div class="timeline-row"><div class="tl-time">02-14 14:53:47.527</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.ss.android.ugc.aweme&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 14:56:51.555</div><div class="tl-content"><span class="tl-left"><span class="pill pill-start">启动应用</span>&nbsp;com.ss.android.ugc.aweme</span><span class="tl-right"></span></div></div><div class="timeline-row"><div class="tl-time">02-14 14:56:57.032</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.ss.android.ugc.aweme&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 16:12:36.898</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.xunmeng.pinduoduo&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 16:12:36.998</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.dragon.read&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 16:12:37.042</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">tv.danmaku.bili&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 16:12:37.091</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.ss.android.article.news&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 16:12:37.143</div><div class="tl-content"><span class="tl-left"></span><span class="tl-right">com.ss.android.ugc.aweme&nbsp;<span class="pill pill-kill">上层/一体化</span></span></div></div><div class="timeline-row"><div class="tl-time">02-14 20:30:39.797</div><div class="tl-content"><span class="tl-left"><span class="pill pill-start">启动应用</span>&nbsp;com.duowan.kiwi</span><span class="tl-right"></span></div></div></div>
+    <h3>高亮主进程驻留率（前5次窗口）</h3>
+    <div class="hl-res-table-wrapper"><table class="hl-res-table"><thead><tr><th>序号</th><th>应用</th><th>启动前存活</th><th>全部</th><th>前1</th><th>前2</th><th>前3</th><th>前4</th><th>前5</th></tr></thead><tbody><tr><td>2</td><td>com.ss.android.ugc.aweme</td><td>0/1</td><td>0/1 (0.0%)</td><td class='rate-bad' title='无'>0/1 (0.0%)</td><td>-</td><td>-</td><td>-</td><td>-</td></tr><tr><td>3</td><td>com.ss.android.ugc.aweme</td><td>0/2</td><td>0/2 (0.0%)</td><td class='rate-bad' title='无'>0/1 (0.0%)</td><td class='rate-bad' title='无'>0/2 (0.0%)</td><td>-</td><td>-</td><td>-</td></tr><tr><td>4</td><td>com.ss.android.ugc.aweme</td><td>0/3</td><td>0/3 (0.0%)</td><td class='rate-bad' title='无'>0/1 (0.0%)</td><td class='rate-bad' title='无'>0/2 (0.0%)</td><td class='rate-bad' title='无'>0/3 (0.0%)</td><td>-</td><td>-</td></tr><tr><td>5</td><td>com.duowan.kiwi</td><td>0/4</td><td>0/4 (0.0%)</td><td class='rate-bad' title='无'>0/1 (0.0%)</td><td class='rate-bad' title='无'>0/2 (0.0%)</td><td class='rate-bad' title='无'>0/3 (0.0%)</td><td class='rate-bad' title='无'>0/4 (0.0%)</td><td>-</td></tr></tbody><tfoot><tr><td></td><td></td><td>均存活数 0.00</td><td>全量均值 0.0%</td><td class='rate-bad'>均值 0.0%</td><td class='rate-bad'>均值 0.0%</td><td class='rate-bad'>均值 0.0%</td><td class='rate-bad'>均值 0.0%</td><td>-</td></tr></tfoot></table></div>
+  </div>
+  </div>
+
+  <script>
+    const charts = {"kill_type": {"NPW": 183, "am_kill": 85, "LAUNCH": 66}, "min_score": {"MAIN_PROC_FACTOR | SUB_MIN_SCORE": 94, "": 85, "NORMAL_MIN_SCORE": 135, "IMPORTANT_MIN_SCORE": 20}, "adj": {"700": 19, "0": 42, "945": 35, "905": 61, "925": 32, "915": 31, "227": 1, "935": 35, "965": 12, "955": 24, "900": 1, "800": 10, "401": 1, "400": 12, "995": 2, "985": 3, "975": 3, "200": 1, "705": 5, "717": 1, "718": 1, "706": 2}, "lmk_reason": {"-1": 141}, "lmk_adj": {"975": 5, "965": 6, "945": 7, "915": 12, "905": 82, "985": 7, "935": 8, "925": 8, "955": 6}, "main_kill_type": {"NPW": 100, "am_kill": 29, "LAUNCH": 58}, "main_min_score": {"MAIN_PROC_FACTOR | SUB_MIN_SCORE": 12, "": 29, "NORMAL_MIN_SCORE": 127, "IMPORTANT_MIN_SCORE": 19}, "main_adj": {"905": 26, "915": 18, "0": 2, "227": 1, "965": 9, "955": 20, "945": 31, "935": 26, "925": 23, "900": 1, "800": 9, "401": 1, "995": 2, "985": 2, "975": 3, "700": 3, "200": 1, "400": 5, "717": 1, "718": 1, "706": 1, "705": 1}, "main_lmk_adj": {"975": 5, "965": 5, "945": 5, "915": 12, "905": 71, "985": 4, "935": 8, "925": 6, "955": 6}, "hl_kill_type": {"am_kill": 8}, "hl_min_score": {"": 8}, "hl_adj": {"400": 5, "0": 1, "706": 1, "705": 1}, "hl_lmk_adj": {}};
+
+    function renderBar(canvasId, dataObj, label) {
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      const labels = Object.keys(dataObj || {}); 
+      const values = Object.values(dataObj || {});
+      if (labels.length === 0) {
+        ctx.parentElement.innerHTML = '<div style="color:#9fb3c8;font-size:12px;padding:8px;">暂无数据</div>';
+        return;
+      }
+      const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 260);
+      gradient.addColorStop(0, 'rgba(123,198,255,0.9)');
+      gradient.addColorStop(1, 'rgba(123,198,255,0.2)');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data: values,
+            backgroundColor: gradient,
+            borderColor: 'rgba(123,198,255,0.95)',
+            borderWidth: 1.2,
+            borderRadius: 6,
+            hoverBackgroundColor: 'rgba(123,198,255,0.95)'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              color: '#f5f7fb',
+              font: { size: 11, weight: '600' },
+              formatter: (value) => value
+            }
+          },
+          scales: {
+            x: { ticks: { color: '#cdd6e3' } },
+            y: { ticks: { color: '#cdd6e3' }, beginAtZero:true }
+          }
+        }
+      });
+    }
+
+    function renderList(listId, dataObj) {
+      const container = document.getElementById(listId);
+      if (!container) return;
+      const entries = Object.entries(dataObj || {}).sort((a,b)=>b[1]-a[1]);
+      if (!entries.length) {
+        container.innerHTML = '<div style="color:#9fb3c8;">暂无数据</div>';
+        return;
+      }
+      container.innerHTML = entries.map(([k,v]) => `
+        <div><span class="key">${k}</span><span class="val">${v}</span></div>
+      `).join('');
+    }
+
+    renderBar('chartKillType', charts.kill_type, '查杀类型');    renderList('listKillType', charts.kill_type);
+    renderBar('chartMinScore', charts.min_score, '可查杀最低分值'); renderList('listMinScore', charts.min_score);
+    renderBar('chartAdj', charts.adj, 'adj 分布');              renderList('listAdj', charts.adj);
+    renderBar('chartLmkReason', charts.lmk_reason, 'LMK 原因');   renderList('listLmkReason', charts.lmk_reason);
+    renderBar('chartLmkAdj', charts.lmk_adj, 'LMK adj');          renderList('listLmkAdj', charts.lmk_adj);
+
+    renderBar('chartMainKillType', charts.main_kill_type, '主进程 kill 类型'); renderList('listMainKillType', charts.main_kill_type);
+    renderBar('chartMainMinScore', charts.main_min_score, '主进程 minScore');  renderList('listMainMinScore', charts.main_min_score);
+    renderBar('chartMainAdj', charts.main_adj, '主进程 adj');                  renderList('listMainAdj', charts.main_adj);
+    renderBar('chartMainLmkAdj', charts.main_lmk_adj, '主进程 LMK adj');       renderList('listMainLmkAdj', charts.main_lmk_adj);
+
+    renderBar('chartHlKillType', charts.hl_kill_type, '高亮主进程 kill 类型'); renderList('listHlKillType', charts.hl_kill_type);
+    renderBar('chartHlMinScore', charts.hl_min_score, '高亮主进程 minScore');  renderList('listHlMinScore', charts.hl_min_score);
+    renderBar('chartHlAdj', charts.hl_adj, '高亮主进程 adj');                 renderList('listHlAdj', charts.hl_adj);
+    renderBar('chartHlLmkAdj', charts.hl_lmk_adj, '高亮主进程 LMK adj');      renderList('listHlLmkAdj', charts.hl_lmk_adj);
+
+    // 折叠明细
+    document.querySelectorAll('.acc-header').forEach(function(h) {
+      h.addEventListener('click', function() {
+        var target = document.getElementById(h.dataset.target);
+        if (!target) return;
+        var visible = target.style.display === 'block';
+        target.style.display = visible ? 'none' : 'block';
+      });
+    });
+  </script>
+</body>
+</html>

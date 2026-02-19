@@ -1,0 +1,48 @@
+server:
+  host: "0.0.0.0"
+  port: 5001
+  debug: false
+  threaded: true
+
+storage:
+  data_folder: "user_data"
+  data_retention_days: 7
+
+upload:
+  allowed_extensions:
+    - "txt"
+    - "zip"
+  max_content_length_mb: 500
+
+llm:
+  default_provider: "auto"
+  provider_fallback_order:
+    - "mify"
+    - "openai"
+    - "azure"
+  openai:
+    api_key: ""
+    base_url: "https://api.openai.com/v1"
+    model: "gpt-4o-mini"
+  azure:
+    api_key: ""
+    endpoint: ""
+    model: "gpt-4"
+  mify:
+    api_key: ""
+    base_url: "https://mify.mioffice.cn/gateway"
+    model: "mimo-v2-flash"
+    provider_id: "xiaomi"
+    timeout_seconds: 60
+    user_id: ""
+    conversation_id: ""
+    logging: ""
+    reasoning_content_enabled: null
+
+utilities_webadb:
+  monitor_max_detail_rows: 800
+  auto_skip_game_packages:
+    - "com.tencent.tmgp.pubgmhd"
+    - "com.tencent.tmgp.sgame"
+  agent_ttl_default: 25
+  proxy_timeout_floor: 5

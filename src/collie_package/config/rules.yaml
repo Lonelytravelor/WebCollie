@@ -1,0 +1,229 @@
+parse_cont_startup:
+  possible_anomaly_start_label: "可能为异常启动"
+  possible_anomaly_start_note: "需要视频/测试二次确认是否为异常"
+  kill_type_map:
+    "0": "NPW"
+    "1": "EPW"
+    "2": "CPW"
+    "3": "LAUNCH"
+    "4": "SUB_PROC"
+    "5": "INVALID"
+  min_score_map:
+    -1073741824: "MAIN_PROC_FACTOR | SUB_MIN_SCORE"
+    -536870912: "LOWADJ_PROC_FACTOR"
+    -268435456: "FORCE_PROTECT_PROC_FACTOR"
+    -134217728: "LOCKED_PROC_FACTOR"
+    -67108864: "RECENT_PROC_FACTOR"
+    -33554432: "IMPORTANT_PROC_FACTOR"
+    -1342177280: "RECENT_MIN_SCORE"
+    -1140850688: "IMPORTANT_MIN_SCORE"
+    -1107296256: "NORMAL_MIN_SCORE"
+  killinfo_field_mapping:
+    compact:
+      - "pid_or_comm"
+      - "pid_or_comm"
+      - "uid"
+      - "adj"
+      - "min_adj"
+      - "rss_kb"
+      - "proc_swap_kb"
+      - "kill_reason"
+      - "mem_total_kb"
+      - "mem_free_kb"
+      - "cached_kb"
+      - "swap_free_kb"
+      - "thrashing"
+      - "max_thrashing"
+      - "psi_mem_some"
+      - "psi_mem_full"
+      - "psi_io_some"
+      - "psi_io_full"
+      - "psi_cpu_some"
+    full:
+      - "pid_or_comm"
+      - "pid_or_comm"
+      - "uid"
+      - "adj"
+      - "min_adj"
+      - "rss_kb"
+      - "kill_reason"
+      - "mem_total_kb"
+      - "mem_free_kb"
+      - "cached_kb"
+      - "swap_cached_kb"
+      - "buffers_kb"
+      - "shmem_kb"
+      - "unevictable_kb"
+      - "swap_total_kb"
+      - "swap_free_kb"
+      - "active_anon_kb"
+      - "inactive_anon_kb"
+      - "active_file_kb"
+      - "inactive_file_kb"
+      - "k_reclaimable_kb"
+      - "s_reclaimable_kb"
+      - "s_unreclaim_kb"
+      - "kernel_stack_kb"
+      - "page_tables_kb"
+      - "ion_heap_kb"
+      - "ion_heap_pool_kb"
+      - "cma_free_kb"
+      - "pressure_since_event_ms"
+      - "since_wakeup_ms"
+      - "wakeups_since_event"
+      - "skipped_wakeups"
+      - "proc_swap_kb"
+      - "gpu_kb"
+      - "thrashing"
+      - "max_thrashing"
+      - "psi_mem_some"
+      - "psi_mem_full"
+      - "psi_io_some"
+      - "psi_io_full"
+      - "psi_cpu_some"
+  patterns:
+    lmk: "(?P<ts>\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?).*?lowmemorykiller:\\s*(?:Kill|Killing)\\s*['\"]?(?P<process>[^\\s'\"(]+)['\"]?\\s*(?:\\((?:pid\\s*)?(?P<pid>\\d+)[^)]*\\)|pid\\s*(?P<pid_alt>\\d+))?(?P<tail>.*)"
+    killinfo: "(?P<ts>\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?).*?killinfo:\\s*\\[(?P<payload>[^\\]]+)\\]"
+    am_kill: "(?P<ts>\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?).*?am_kill\\s*:\\s*\\[(?P<payload>[^\\]]+)\\]"
+    am_proc_start: "(?P<ts>\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}).*?am_proc_start:\\s*\\[(?P<payload>[^\\]]+)\\]"
+    displayed: "(?P<ts>\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?).*?ActivityTaskManager:\\s*Displayed\\s+(?P<component>[^\\s]+)\\s+for user \\d+:\\s+\\+(?P<latency>.+)$"
+    wm_resumed: "(?P<ts>\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?).*?wm_set_resumed_activity:\\s*\\[(?P<payload>[^\\]]+)\\]"
+  home_packages:
+    - "com.miui.home"
+    - "com.android.launcher"
+    - "com.android.launcher3"
+
+app_install:
+  store_package: "com.xiaomi.market"
+  base_resolution: [1080, 2340]
+  search_box_coords: [840, 220]
+  install_button_ratios:
+    - [0.50, 0.93]
+    - [0.50, 0.94]
+  install_button_coords: [900, 1600]
+  use_ui_dump: false
+  wait_time: 5
+  delete_attempts: 30
+  busy_pause_sec: 4
+  install_poll_interval: 6
+  install_poll_timeout: 240
+  max_wait_per_app: 20
+  page_load_wait: 4.0
+  fallback_max_clicks: 1
+  post_tap_wait: 2.5
+
+app_died_monitor:
+  trigger_commands:
+    - "adb shell dumpsys activity"
+    - "adb shell dumpsys meminfo"
+    - "adb shell cmd greezer getUids 9999"
+  periodic_dumpsys_command: "adb shell dumpsys activity"
+  periodic_dumpsys_count: 3
+  periodic_dumpsys_interval: 10
+  periodic_commands: []
+  fallback_monitor_targets:
+    - label: "Demo App"
+      packages:
+        - "com.ss.android.ugc.aweme"
+
+pre_start:
+  commands:
+    - "adb logcat -b all -c"
+    - "adb shell dmesg -C"
+    - "adb root"
+    - "adb shell 'echo 7 > /sys/kernel/mi_mempool/config'"
+    - "adb shell 'echo 2 > /sys/kernel/mem_limit/debug'"
+    - "adb shell 'echo 63 > /sys/kernel/mi_reclaim/greclaim_enable'"
+    - "adb shell setprop persist.sys.miui.integrated.memory.debug.enable true"
+    - "adb shell setprop debug.sys.spc true"
+    - "adb shell stop"
+    - "adb shell start"
+  post_commands:
+    - "adb shell settings put system mmperf stat"
+    - "adb shell settings put system mmperf trace"
+  post_delay_sec: 10
+
+compare_android_mem_design:
+  page_size_kb: 4
+  interesting_meminfo_keys:
+    - "MemTotal"
+    - "Buffers"
+    - "Cached"
+    - "SwapCached"
+    - "SwapTotal"
+    - "Shmem"
+    - "Mapped"
+    - "AnonPages"
+    - "FilePages"
+    - "VmallocTotal"
+    - "CommitLimit"
+    - "Committed_AS"
+    - "HugePages_Total"
+  primary_prop_keys:
+    - "ro.board.platform"
+    - "ro.build.version.release"
+    - "dalvik.vm.heapsize"
+    - "dalvik.vm.heapgrowthlimit"
+    - "ersist.sys.systemui.compress"
+    - "persist.sys.miui.integrated.memory.enable"
+    - "persist.sys.miui.integrated.memory.pr.enable"
+    - "persist.sys.imr.zramuserate.limit"
+    - "persist.sys.imr.cpuload.limit"
+    - "persist.sys.imr.memfree.limit"
+    - "persist.sys.imr.zramfree.limit"
+    - "persist.sys.imr.kill.memfree.limit"
+    - "persist.sys.imr.launchrecliam.num"
+    - "persist.sys.mmms.throttled.thread"
+  important_modules:
+    - "mi_memory"
+    - "mi_mempool"
+    - "mi_mem_limit"
+    - "mi_mem_epoll"
+    - "mi_rmap_efficiency"
+    - "mi_async_reclaim"
+    - "kshrink_slabd"
+    - "unfairmem"
+  vm_tunable_keys:
+    - "vm.min_free_kbytes"
+    - "vm.extra_free_kbytes"
+    - "vm.watermark_scale_factor"
+    - "vm.watermark_boost_factor"
+    - "vm.lowmem_reserve_ratio"
+    - "vm.swappiness"
+    - "vm.vfs_cache_pressure"
+    - "vm.dirty_background_ratio"
+    - "vm.dirty_ratio"
+    - "vm.dirty_background_bytes"
+    - "vm.dirty_bytes"
+    - "vm.overcommit_memory"
+    - "vm.overcommit_ratio"
+    - "vm.zone_reclaim_mode"
+    - "vm.min_slab_ratio"
+    - "vm.min_unmapped_ratio"
+    - "vm.percpu_pagelist_fraction"
+    - "vm.compact_unevictable_allowed"
+    - "vm.compact_defer_shift"
+
+meminfo_summary:
+  kb_in_mb: 1024
+
+parse_kswapd:
+  line_re: "^(?P<comm>.+?)-(?P<pid>\\d+)\\s+\\[(?P<cpu>\\d+)\\]\\s+(?P<flags>[\\.A-Z]+)\\s+(?P<ts>\\d+\\.\\d+):\\s+(?P<event>\\S+):\\s+(?P<args>.*)$"
+  nid_re: "nid=(\\d+)"
+  order_re: "order=(\\d+)"
+  gfp_re: "gfp_flags=([^\\s]+)"
+  events:
+    - "mm_vmscan_wakeup_kswapd"
+    - "mm_vmscan_kswapd_wake"
+    - "mm_vmscan_kswapd_sleep"
+
+parse_direct_reclaim:
+  line_re: "^(?P<comm>.+?)-(?P<pid>\\d+)\\s+\\[(?P<cpu>\\d+)\\]\\s+(?P<flags>[\\.A-Z]+)\\s+(?P<ts>\\d+\\.\\d+):\\s+(?P<event>\\S+):\\s+(?P<args>.*)$"
+  order_re: "order=(\\d+)"
+  gfp_re: "gfp_flags=([^\\s]+)"
+  nr_reclaimed_re: "nr_reclaimed=(\\d+)"
+  prev_pid_re: "prev_pid=(\\d+)"
+  next_pid_re: "next_pid=(\\d+)"
+  events:
+    - "mm_vmscan_direct_reclaim_begin"
+    - "mm_vmscan_direct_reclaim_end"

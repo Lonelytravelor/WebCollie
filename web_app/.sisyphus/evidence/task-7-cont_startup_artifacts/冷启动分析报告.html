@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>冷启动分析报告</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:0;background:#f6f7fb;color:#111827;}
+    .page{max-width:1100px;margin:0 auto;padding:24px;}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:16px 0;}
+    h1{margin:0 0 8px 0;font-size:22px;}
+    h2{margin:0 0 8px 0;font-size:16px;}
+    pre{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;overflow:auto;}
+    .meta{display:flex;gap:12px;flex-wrap:wrap;color:#6b7280;font-size:12px;}
+    .pill{background:#f8fafc;border:1px solid #e5e7eb;border-radius:999px;padding:4px 10px;}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="card">
+      <h1>冷启动分析报告</h1>
+      <div class="meta">
+        <div class="pill">created_at: <span id="created"></span></div>
+        <div class="pill">timestamp: <span id="ts"></span></div>
+        <div class="pill">mode: dry-run</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Capabilities</h2>
+      <pre id="caps"></pre>
+    </div>
+    <div class="card">
+      <h2>Degradation Plan</h2>
+      <pre id="plan"></pre>
+    </div>
+  </div>
+  <script>
+    const title = "冷启动分析报告";
+    const createdAt = "2026-02-14T20:50:54";
+    const timestamp = "14_20_50";
+    const caps = "{\n  \"has_greclaim_parm_node\": true,\n  \"has_process_use_count_node\": true,\n  \"has_trace_pipe\": true,\n  \"root_available\": true,\n  \"root_probe_cmd\": \"id\",\n  \"root_probe_stdout\": \"uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0\",\n  \"tracing_base\": \"/sys/kernel/tracing\"\n}";
+    const plan = "{\n  \"bugreport\": {\n    \"reasons\": [],\n    \"requested\": false,\n    \"required_capabilities\": [],\n    \"status\": \"disabled\",\n    \"step_id\": \"bugreport\"\n  },\n  \"collectors\": [\n    {\n      \"collector_id\": \"logcat\",\n      \"reasons\": [],\n      \"requested\": true,\n      \"required_capabilities\": [],\n      \"status\": \"enabled\"\n    },\n    {\n      \"collector_id\": \"memcat\",\n      \"reasons\": [],\n      \"requested\": false,\n      \"required_capabilities\": [],\n      \"status\": \"disabled\"\n    },\n    {\n      \"collector_id\": \"meminfo\",\n      \"reasons\": [],\n      \"requested\": false,\n      \"required_capabilities\": [],\n      \"status\": \"disabled\"\n    },\n    {\n      \"collector_id\": \"vmstat\",\n      \"reasons\": [],\n      \"requested\": false,\n      \"required_capabilities\": [],\n      \"status\": \"disabled\"\n    },\n    {\n      \"collector_id\": \"greclaim_parm\",\n      \"reasons\": [],\n      \"requested\": false,\n      \"required_capabilities\": [],\n      \"status\": \"disabled\"\n    },\n    {\n      \"collector_id\": \"process_use_count\",\n      \"reasons\": [],\n      \"requested\": false,\n      \"required_capabilities\": [],\n      \"status\": \"disabled\"\n    },\n    {\n      \"collector_id\": \"oomadj\",\n      \"reasons\": [],\n      \"requested\": false,\n      \"required_capabilities\": [],\n      \"status\": \"disabled\"\n    },\n    {\n      \"collector_id\": \"ftrace\",\n      \"reasons\": [],\n      \"requested\": false,\n      \"required_capabilities\": [],\n      \"status\": \"disabled\"\n    }\n  ],\n  \"pre_start\": {\n    \"reasons\": [],\n    \"requested\": false,\n    \"required_capabilities\": [],\n    \"status\": \"disabled\",\n    \"step_id\": \"pre_start\"\n  }\n}";
+    document.getElementById("created").textContent = createdAt;
+    document.getElementById("ts").textContent = timestamp;
+    document.getElementById("caps").textContent = caps;
+    document.getElementById("plan").textContent = plan;
+  </script>
+</body>
+</html>

@@ -1,0 +1,301 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "console_log",
+      "description": "Console tee log (Collie ConsoleLogger)",
+      "kind": "log",
+      "path": "console_14_20_50.log",
+      "path_glob": null,
+      "path_template": "console_{timestamp}.log",
+      "reasons": [],
+      "relates_to": null,
+      "status": "planned"
+    },
+    {
+      "artifact_id": "logcat",
+      "description": "Logcat capture output",
+      "kind": "log",
+      "path": "logcat_14_20_50.txt",
+      "path_glob": null,
+      "path_template": "logcat_{timestamp}.txt",
+      "reasons": [],
+      "relates_to": "logcat",
+      "status": "planned"
+    },
+    {
+      "artifact_id": "memcat_txt",
+      "description": "Memcat text output",
+      "kind": "data",
+      "path": null,
+      "path_glob": null,
+      "path_template": "memcat.txt",
+      "reasons": [
+        "memcat_not_enabled"
+      ],
+      "relates_to": "memcat",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "memcat_html",
+      "description": "Memcat HTML report(s) if produced",
+      "kind": "report",
+      "path": null,
+      "path_glob": "memcat*.html",
+      "path_template": null,
+      "reasons": [
+        "memcat_not_enabled"
+      ],
+      "relates_to": "memcat",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "meminfo",
+      "description": "dumpsys meminfo snapshot (before/after)",
+      "kind": "data",
+      "path": null,
+      "path_glob": null,
+      "path_template": "meminfo{timestamp}.txt",
+      "reasons": [
+        "meminfo_not_enabled"
+      ],
+      "relates_to": "meminfo",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "vmstat",
+      "description": "vmstat snapshot (before/after)",
+      "kind": "data",
+      "path": null,
+      "path_glob": null,
+      "path_template": "vmstat{timestamp}.txt",
+      "reasons": [
+        "vmstat_not_enabled"
+      ],
+      "relates_to": "vmstat",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "greclaim_parm",
+      "description": "greclaim_parm node dump (before/after)",
+      "kind": "data",
+      "path": null,
+      "path_glob": null,
+      "path_template": "greclaim_parm{timestamp}.txt",
+      "reasons": [
+        "greclaim_parm_not_enabled"
+      ],
+      "relates_to": "greclaim_parm",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "process_use_count",
+      "description": "process_use_count node dump (before/after)",
+      "kind": "data",
+      "path": null,
+      "path_glob": null,
+      "path_template": "process_use_count{timestamp}.txt",
+      "reasons": [
+        "process_use_count_not_enabled"
+      ],
+      "relates_to": "process_use_count",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "oomadj_csv",
+      "description": "OOMAdj CSV raw log",
+      "kind": "data",
+      "path": null,
+      "path_glob": null,
+      "path_template": "oomadj_{timestamp}.csv",
+      "reasons": [
+        "oomadj_not_enabled"
+      ],
+      "relates_to": "oomadj",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "oomadj_summary",
+      "description": "OOMAdj summary report",
+      "kind": "report",
+      "path": null,
+      "path_glob": null,
+      "path_template": "oomadj_summary_report_{timestamp}.txt",
+      "reasons": [
+        "oomadj_not_enabled"
+      ],
+      "relates_to": "oomadj",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "ftrace_raw",
+      "description": "ftrace raw capture",
+      "kind": "data",
+      "path": null,
+      "path_glob": null,
+      "path_template": "ftrace_{timestamp}.txt",
+      "reasons": [
+        "ftrace_not_enabled"
+      ],
+      "relates_to": "ftrace",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "direct_reclaim_report",
+      "description": "ftrace direct reclaim parsed report",
+      "kind": "report",
+      "path": null,
+      "path_glob": null,
+      "path_template": "ftrace_logs/direct_reclaim_report.txt",
+      "reasons": [
+        "ftrace_not_enabled"
+      ],
+      "relates_to": "ftrace",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "kswapd_report",
+      "description": "ftrace kswapd parsed report",
+      "kind": "report",
+      "path": null,
+      "path_glob": null,
+      "path_template": "ftrace_logs/kswapd_report.txt",
+      "reasons": [
+        "ftrace_not_enabled"
+      ],
+      "relates_to": "ftrace",
+      "status": "skipped"
+    },
+    {
+      "artifact_id": "bugreport_zip",
+      "description": "Captured bugreport zip (if enabled)",
+      "kind": "artifact",
+      "path": null,
+      "path_glob": "bugreport_*.zip",
+      "path_template": null,
+      "reasons": [
+        "bugreport_not_enabled"
+      ],
+      "relates_to": "bugreport",
+      "status": "skipped"
+    }
+  ],
+  "capabilities": {
+    "has_greclaim_parm_node": true,
+    "has_process_use_count_node": true,
+    "has_trace_pipe": true,
+    "root_available": true,
+    "root_probe_cmd": "id",
+    "root_probe_stdout": "uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0",
+    "tracing_base": "/sys/kernel/tracing"
+  },
+  "config": {
+    "app_list": {
+      "custom_json": null,
+      "preset_name": "HighLight"
+    },
+    "bugreport": {
+      "capture_timeout_sec": 1200,
+      "cli_skip_window_sec": 10,
+      "mode": "skip"
+    },
+    "collectors": {
+      "ftrace": false,
+      "ftrace_include_sched_switch": false,
+      "greclaim_parm": false,
+      "logcat": true,
+      "memcat": false,
+      "meminfo": false,
+      "oomadj": false,
+      "process_use_count": false,
+      "vmstat": false
+    },
+    "device_id": "M7UK99ORHAMNEY6D",
+    "output_dir_strategy": {
+      "dir_prefix": "log_",
+      "timestamp_format": "%d_%H_%M"
+    },
+    "run_pre_start": false
+  },
+  "created_at": "2026-02-14T20:50:54",
+  "degradation": {
+    "bugreport": {
+      "reasons": [],
+      "requested": false,
+      "required_capabilities": [],
+      "status": "disabled",
+      "step_id": "bugreport"
+    },
+    "collectors": [
+      {
+        "collector_id": "logcat",
+        "reasons": [],
+        "requested": true,
+        "required_capabilities": [],
+        "status": "enabled"
+      },
+      {
+        "collector_id": "memcat",
+        "reasons": [],
+        "requested": false,
+        "required_capabilities": [],
+        "status": "disabled"
+      },
+      {
+        "collector_id": "meminfo",
+        "reasons": [],
+        "requested": false,
+        "required_capabilities": [],
+        "status": "disabled"
+      },
+      {
+        "collector_id": "vmstat",
+        "reasons": [],
+        "requested": false,
+        "required_capabilities": [],
+        "status": "disabled"
+      },
+      {
+        "collector_id": "greclaim_parm",
+        "reasons": [],
+        "requested": false,
+        "required_capabilities": [],
+        "status": "disabled"
+      },
+      {
+        "collector_id": "process_use_count",
+        "reasons": [],
+        "requested": false,
+        "required_capabilities": [],
+        "status": "disabled"
+      },
+      {
+        "collector_id": "oomadj",
+        "reasons": [],
+        "requested": false,
+        "required_capabilities": [],
+        "status": "disabled"
+      },
+      {
+        "collector_id": "ftrace",
+        "reasons": [],
+        "requested": false,
+        "required_capabilities": [],
+        "status": "disabled"
+      }
+    ],
+    "pre_start": {
+      "reasons": [],
+      "requested": false,
+      "required_capabilities": [],
+      "status": "disabled",
+      "step_id": "pre_start"
+    }
+  },
+  "error": null,
+  "job_kind": "cont_startup_stay",
+  "result": "success",
+  "schema_version": 1,
+  "status": "completed",
+  "timestamp": "14_20_50",
+  "traceback": null
+}
