@@ -2906,6 +2906,10 @@ python3 adb_agent.py \
         let utilCurrentCheckResultJobId = '';
         let utilInstallInProgress = false;
         let utilInstallAwaitingManualConfirm = false;
+        let simpleperfLocalTimer = null;
+        let simpleperfLocalStartTs = 0;
+        let simpleperfLocalDuration = 0;
+        let simpleperfLocalActive = false;
         let utilCurrentMonitorJobId = '';
         let utilityJobAction = '';
         let currentUtilitySubTab = 'app_install';
@@ -3006,12 +3010,67 @@ python3 adb_agent.py \
             if (action !== 'simpleperf_record') {
                 utilPerfProgressText.textContent = '等待开始';
                 utilPerfProgressFill.style.width = '0%';
+                _stopSimpleperfLocalTimer();
                 return;
             }
             const progress = Number.isFinite(Number(state.progress)) ? Number(state.progress) : 0;
             utilPerfProgressFill.style.width = `${Math.max(0, Math.min(100, progress))}%`;
-            const msg = state.statusText || state.status || '';
+            const msg = state.message || state.statusText || state.status || '';
             utilPerfProgressText.textContent = msg || `进度 ${progress}%`;
+
+            const normalizedMsg = String(msg || '');
+            if (!_isSimpleperfLocalTimerActive()
+                && (normalizedMsg.includes('开始抓取') || normalizedMsg.includes('抓取中'))) {
+                _startSimpleperfLocalTimer();
+            }
+            if (normalizedMsg.includes('生成') || normalizedMsg.includes('完成')) {
+                _stopSimpleperfLocalTimer();
+            }
+            if (['completed', 'error', 'cancelled'].includes(String(state.status || ''))) {
+                _stopSimpleperfLocalTimer();
+            }
+        }
+
+        function _isSimpleperfLocalTimerActive() {
+            return !!(simpleperfLocalTimer && simpleperfLocalActive);
+        }
+
+        function _startSimpleperfLocalTimer() {
+            if (!utilPerfDuration) return;
+            const duration = Number(utilPerfDuration.value || 10);
+            const safeDuration = Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 10;
+            _stopSimpleperfLocalTimer();
+            simpleperfLocalDuration = safeDuration;
+            simpleperfLocalStartTs = Date.now();
+            simpleperfLocalActive = true;
+
+            const tick = () => {
+                if (!simpleperfLocalActive) return;
+                const elapsed = Math.floor((Date.now() - simpleperfLocalStartTs) / 1000);
+                const remain = Math.max(0, simpleperfLocalDuration - elapsed);
+                const ratio = Math.min(1, elapsed / simpleperfLocalDuration);
+                const percent = Math.max(0, Math.min(100, 32 + Math.round(ratio * 18)));
+                if (utilPerfProgressFill) {
+                    utilPerfProgressFill.style.width = `${percent}%`;
+                }
+                if (utilPerfProgressText) {
+                    utilPerfProgressText.textContent = `抓取中，剩余 ${remain}s`;
+                }
+                if (remain <= 0) {
+                    _stopSimpleperfLocalTimer();
+                }
+            };
+
+            tick();
+            simpleperfLocalTimer = setInterval(tick, 1000);
+        }
+
+        function _stopSimpleperfLocalTimer() {
+            simpleperfLocalActive = false;
+            if (simpleperfLocalTimer) {
+                clearInterval(simpleperfLocalTimer);
+                simpleperfLocalTimer = null;
+            }
         }
 
         function _renderUtilityPanelFromTabState(tabState) {
@@ -5292,6 +5351,7 @@ python3 adb_agent.py \
                 state.status = data.status || '';
                 state.paused = !!data.paused;
                 state.progress = progress;
+                state.message = msg;
                 state.jobId = data.job_id || state.jobId || '';
                 if (utilProgressFill) {
                     utilProgressFill.style.width = `${Math.max(0, Math.min(100, progress))}%`;
@@ -5321,6 +5381,7 @@ python3 adb_agent.py \
                 updateMonitorPauseResumeButtons(data.status, data.paused, data.action);
                 updateContPauseResumeButtons(data.status, data.paused, data.action);
                 _renderUtilityFiles(pollingJobId, data.files || []);
+                _updateSimpleperfProgress(state);
                 await _pollUtilityLogs(pollingJobId, state);
 
                 if (['completed', 'error', 'cancelled'].includes(data.status)) {
@@ -5702,6 +5763,7 @@ python3 adb_agent.py \
             setUtilityStatus('任务创建中...');
             if (utilPerfProgressText) utilPerfProgressText.textContent = `准备抓取前: ${pkg} (${duration || 10}s)`;
             if (utilPerfProgressFill) utilPerfProgressFill.style.width = '0%';
+            _stopSimpleperfLocalTimer();
             runUtilityActionWithPayload('simpleperf_record', {
                 package: pkg,
                 duration_s: Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 10,
