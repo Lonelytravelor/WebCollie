@@ -221,21 +221,24 @@ def run_simpleperf_pipeline(
         if ndk_path:
             log(f"[simpleperf] 自动检测到 NDK: {ndk_path}")
 
-    if ndk_path:
-        html_cmd += ['--ndk_path', str(ndk_path)]
-    else:
+    if not ndk_path:
         llvm_readobj = _resolve_llvm_readobj()
         if llvm_readobj:
-            shim = out_dir / "llvm-readelf"
+            shim_root = out_dir / "ndk-shim"
+            shim_bin = shim_root / "toolchains" / "llvm" / "prebuilt" / "linux-x86_64" / "bin"
+            shim_bin.mkdir(parents=True, exist_ok=True)
+            shim = shim_bin / "llvm-readelf"
             shim.write_text(
                 "#!/usr/bin/env sh\n"
                 f"\"{llvm_readobj}\" \"$@\"\n",
                 encoding="utf-8",
             )
             os.chmod(shim, 0o755)
+            ndk_path = str(shim_root)
             log(f"[simpleperf] 使用 llvm-readobj 兼容器: {llvm_readobj}")
-            current_path = os.environ.get("PATH", "")
-            html_cmd = ["env", f"PATH={str(out_dir)}:{current_path}"] + html_cmd
+
+    if ndk_path:
+        html_cmd += ['--ndk_path', str(ndk_path)]
     run_cmd(html_cmd, 240)
 
     progress(95, '清理设备临时文件')
