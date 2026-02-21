@@ -33,6 +33,12 @@ from collie_package.utilities.web_tasks import (
     run_store_install_apps,
     resolve_packages_from_preset,
     build_cont_startup_config,
+    parse_wm_size,
+    ratio_point,
+    build_app_versions_compare,
+    parse_app_versions_content,
+    build_app_versions_report,
+    build_check_app_history_item,
 )
 
 
@@ -57,11 +63,6 @@ validate_compile_mode = getattr(_ADB_API, 'validate_compile_mode')
 validate_package_name = getattr(_ADB_API, 'validate_package_name')
 
 
-TABLE_ROW_RE = re.compile(r"^\|\s*(?P<c1>[^|]+?)\s*\|\s*(?P<c2>[^|]+?)\s*\|$")
-KV_LINE_RE = re.compile(
-    r"^(?P<pkg>[A-Za-z0-9_\.]+)\s*(?:versin|version|版本)?\s*[:：]\s*(?P<ver>.+)$",
-    re.IGNORECASE,
-)
 _APP_SETTINGS = load_app_settings()
 _UTIL_SETTINGS = _APP_SETTINGS.get('utilities_webadb', {})
 
@@ -543,44 +544,6 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 files.append({"name": f.name, "size": f.stat().st_size})
         return files
 
-    def _parse_app_versions_content(content):
-        result = {}
-        for raw_line in (content or "").splitlines():
-            line = raw_line.strip()
-            if not line:
-                continue
-            if line.startswith("+") and line.endswith("+"):
-                continue
-
-            row_match = TABLE_ROW_RE.match(line)
-            if row_match:
-                c1 = row_match.group("c1").strip()
-                c2 = row_match.group("c2").strip()
-                if c1.lower() == "package_name" and c2.lower() == "version_name":
-                    continue
-                if c1:
-                    result[c1] = c2
-                continue
-
-            kv_match = KV_LINE_RE.match(line)
-            if kv_match:
-                result[kv_match.group("pkg").strip()] = kv_match.group("ver").strip()
-        return result
-
-    def _escape_markdown_cell(value):
-        text = str(value if value is not None else "")
-        return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ").strip()
-
-    def _render_markdown_table(headers, rows):
-        header_line = "| " + " | ".join(_escape_markdown_cell(h) for h in headers) + " |"
-        split_line = "| " + " | ".join("---" for _ in headers) + " |"
-        body_lines = []
-        for row in rows:
-            body_lines.append("| " + " | ".join(_escape_markdown_cell(c) for c in row) + " |")
-        if not body_lines:
-            body_lines.append("| " + " | ".join("-" for _ in headers) + " |")
-        return "\n".join([header_line, split_line, *body_lines])
-
     def _run_action(job):
         action = job["action"]
         params = job["params"]
@@ -697,8 +660,8 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 hooks=hooks,
                 is_device_online=lambda: _is_device_online(device_id, owner_ip=job.get("ip")),
                 load_install_coords=_load_install_coords,
-                parse_wm_size=_parse_wm_size,
-                ratio_point=_ratio_point,
+                parse_wm_size=parse_wm_size,
+                ratio_point=ratio_point,
                 auto_skip_game_packages=AUTO_SKIP_GAME_PACKAGES,
                 confirm_event=job.get("confirm_event"),
                 set_manual_confirm=_set_manual_confirm,
@@ -1131,26 +1094,15 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 updated_ts = result_file.stat().st_mtime if has_result else (
                     job_dir.stat().st_mtime if job_dir.exists() else time.time()
                 )
-                rows_count = 0
-                if has_result:
-                    try:
-                        text = result_file.read_text(encoding="utf-8", errors="ignore")
-                        rows_count = len(_parse_app_versions_content(text))
-                    except Exception:
-                        rows_count = 0
-
-                items_by_id[job_id] = {
-                    "job_id": job_id,
-                    "status": job.get("status", "unknown"),
-                    "created_at": job.get("created_at") or datetime.fromtimestamp(updated_ts).strftime("%Y%m%d_%H%M%S"),
-                    "updated_at": datetime.fromtimestamp(updated_ts).strftime("%Y%m%d_%H%M%S"),
-                    "result_file": "app_versions.txt" if has_result else None,
-                    "rows_count": rows_count,
-                    "has_result": has_result,
-                    "source": "memory",
-                    "files": _list_job_files(job_dir),
-                    "_updated_ts": updated_ts,
-                }
+                items_by_id[job_id] = build_check_app_history_item(
+                    job_id=job_id,
+                    job_status=job.get("status", "unknown"),
+                    created_at=job.get("created_at") or "",
+                    updated_ts=updated_ts,
+                    result_file=result_file,
+                    source="memory",
+                    files=_list_job_files(job_dir),
+                )
 
         for item in utilities_root.iterdir():
             if not item.is_dir():
@@ -1160,36 +1112,26 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             if not result_file.exists():
                 continue
             updated_ts = result_file.stat().st_mtime
-            rows_count = 0
-            try:
-                text = result_file.read_text(encoding="utf-8", errors="ignore")
-                rows_count = len(_parse_app_versions_content(text))
-            except Exception:
-                rows_count = 0
 
             if job_id in items_by_id:
                 current = items_by_id[job_id]
                 current["has_result"] = True
                 current["result_file"] = "app_versions.txt"
-                current["rows_count"] = max(current.get("rows_count", 0), rows_count)
                 current["files"] = _list_job_files(item)
                 if updated_ts > current["_updated_ts"]:
                     current["_updated_ts"] = updated_ts
                     current["updated_at"] = datetime.fromtimestamp(updated_ts).strftime("%Y%m%d_%H%M%S")
                 continue
 
-            items_by_id[job_id] = {
-                "job_id": job_id,
-                "status": "completed",
-                "created_at": datetime.fromtimestamp(item.stat().st_mtime).strftime("%Y%m%d_%H%M%S"),
-                "updated_at": datetime.fromtimestamp(updated_ts).strftime("%Y%m%d_%H%M%S"),
-                "result_file": "app_versions.txt",
-                "rows_count": rows_count,
-                "has_result": True,
-                "source": "disk",
-                "files": _list_job_files(item),
-                "_updated_ts": updated_ts,
-            }
+            items_by_id[job_id] = build_check_app_history_item(
+                job_id=job_id,
+                job_status="completed",
+                created_at=datetime.fromtimestamp(item.stat().st_mtime).strftime("%Y%m%d_%H%M%S"),
+                updated_ts=updated_ts,
+                result_file=result_file,
+                source="disk",
+                files=_list_job_files(item),
+            )
 
         items = list(items_by_id.values())
         items.sort(key=lambda x: x["_updated_ts"], reverse=True)
@@ -1210,30 +1152,17 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             return jsonify({"error": "该任务没有 app_versions.txt 结果"}), 404
 
         content = result_file.read_text(encoding="utf-8", errors="ignore")
-        parsed = _parse_app_versions_content(content)
-        rows = [{"package_name": pkg, "version_name": ver} for pkg, ver in sorted(parsed.items())]
-        table_rows = [(row["package_name"], row["version_name"]) for row in rows]
-        markdown = "\n".join(
-            [
-                "# 版本检查结果",
-                "",
-                f"- 任务ID: {job_id}",
-                f"- 更新时间: {datetime.fromtimestamp(result_file.stat().st_mtime).strftime('%Y%m%d_%H%M%S')}",
-                f"- 条目数: {len(rows)}",
-                "",
-                _render_markdown_table(("包名", "版本号"), table_rows),
-                "",
-            ]
-        )
+        updated_at = datetime.fromtimestamp(result_file.stat().st_mtime).strftime('%Y%m%d_%H%M%S')
+        report = build_app_versions_report(job_id=job_id, content=content, updated_at=updated_at)
         return jsonify(
             {
                 "job_id": job_id,
                 "file": "app_versions.txt",
-                "updated_at": datetime.fromtimestamp(result_file.stat().st_mtime).strftime("%Y%m%d_%H%M%S"),
-                "rows_count": len(rows),
-                "rows": rows,
+                "updated_at": updated_at,
+                "rows_count": report.get("rows_count", 0),
+                "rows": report.get("rows", []),
                 "content": content,
-                "markdown": markdown,
+                "markdown": report.get("markdown", ""),
             }
         )
 
@@ -1294,89 +1223,25 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
         if not file_1.exists() or not file_2.exists():
             return jsonify({"error": "待对比任务缺少 app_versions.txt"}), 404
 
-        data_1 = _parse_app_versions_content(file_1.read_text(encoding="utf-8", errors="ignore"))
-        data_2 = _parse_app_versions_content(file_2.read_text(encoding="utf-8", errors="ignore"))
-        if not data_1 and not data_2:
-            return jsonify({"error": "两份结果都无法解析版本信息"}), 400
-
-        all_packages = sorted(set(data_1.keys()) | set(data_2.keys()))
-        rows = []
-        same_count = 0
-        changed_count = 0
-        only_1_count = 0
-        only_2_count = 0
-        diff_rows = []
-
-        for pkg in all_packages:
-            version_1 = data_1.get(pkg)
-            version_2 = data_2.get(pkg)
-            if version_1 is None:
-                diff_type = "仅结果B存在"
-                only_2_count += 1
-            elif version_2 is None:
-                diff_type = "仅结果A存在"
-                only_1_count += 1
-            elif version_1 == version_2:
-                diff_type = "一致"
-                same_count += 1
-            else:
-                diff_type = "版本变化"
-                changed_count += 1
-
-            row = {
-                "package_name": pkg,
-                "version_a": version_1 or "-",
-                "version_b": version_2 or "-",
-                "diff_type": diff_type,
-            }
-            rows.append(row)
-            if diff_type != "一致":
-                diff_rows.append((row["package_name"], row["version_a"], row["version_b"], row["diff_type"]))
-
-        if diff_rows:
-            comparison_text = _render_ascii_table(
-                ("package_name", "version_a", "version_b", "diff_type"),
-                diff_rows,
+        try:
+            compare_result = build_app_versions_compare(
+                job_id_1=job_id_1,
+                job_id_2=job_id_2,
+                text_a=file_1.read_text(encoding="utf-8", errors="ignore"),
+                text_b=file_2.read_text(encoding="utf-8", errors="ignore"),
             )
-        else:
-            comparison_text = "两份结果版本完全一致。"
-
-        markdown_rows = [
-            (row["package_name"], row["version_a"], row["version_b"], row["diff_type"])
-            for row in rows
-        ]
-        markdown = "\n".join(
-            [
-                "# 应用版本差异对比",
-                "",
-                f"- 结果A: {job_id_1}",
-                f"- 结果B: {job_id_2}",
-                f"- 总包数: {len(all_packages)}",
-                f"- 一致: {same_count}",
-                f"- 版本变化: {changed_count}",
-                f"- 仅A存在: {only_1_count}",
-                f"- 仅B存在: {only_2_count}",
-                "",
-                _render_markdown_table(("包名", "结果A版本", "结果B版本", "差异类型"), markdown_rows),
-                "",
-            ]
-        )
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
 
         return jsonify(
             {
                 "status": "success",
                 "job_id_1": job_id_1,
                 "job_id_2": job_id_2,
-                "summary": {
-                    "total_packages": len(all_packages),
-                    "same_count": same_count,
-                    "changed_count": changed_count,
-                    "only_a_count": only_1_count,
-                    "only_b_count": only_2_count,
-                },
-                "rows": rows,
-                "comparison_text": comparison_text,
-                "markdown": markdown,
+                "summary": compare_result.get("summary", {}),
+                "rows": compare_result.get("rows", []),
+                "comparison_text": compare_result.get("comparison_text", ""),
+                "markdown": compare_result.get("markdown", ""),
             }
         )
 
@@ -1553,28 +1418,6 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             except Exception:
                 return {}
         return {}
-
-    def _parse_wm_size(output):
-        candidates = []
-        m = re.search(r"Override size:\s*(\d+)x(\d+)", output)
-        if m:
-            candidates.append((int(m.group(1)), int(m.group(2))))
-        m = re.search(r"Physical size:\s*(\d+)x(\d+)", output)
-        if m:
-            ph = (int(m.group(1)), int(m.group(2)))
-            if ph not in candidates:
-                candidates.append(ph)
-        m = re.search(r"(\d+)x(\d+)", output)
-        if m:
-            any_size = (int(m.group(1)), int(m.group(2)))
-            if any_size not in candidates:
-                candidates.append(any_size)
-        return candidates
-
-    def _ratio_point(ratio, size):
-        if size:
-            return int(size[0] * ratio[0]), int(size[1] * ratio[1])
-        return int(1080 * ratio[0]), int(2340 * ratio[1])
 
     def _job_set_progress(job, progress, message):
         with utilities_jobs_lock:

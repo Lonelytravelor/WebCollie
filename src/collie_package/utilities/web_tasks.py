@@ -82,6 +82,189 @@ def _render_ascii_table(headers, rows):
     return "\n".join([border, header_line, border, *body_lines, border])
 
 
+def _escape_markdown_cell(value):
+    text = str(value if value is not None else "")
+    return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ").strip()
+
+
+def _render_markdown_table(headers, rows):
+    header_line = "| " + " | ".join(_escape_markdown_cell(h) for h in headers) + " |"
+    split_line = "| " + " | ".join("---" for _ in headers) + " |"
+    body_lines = []
+    for row in rows:
+        body_lines.append("| " + " | ".join(_escape_markdown_cell(c) for c in row) + " |")
+    if not body_lines:
+        body_lines.append("| " + " | ".join("-" for _ in headers) + " |")
+    return "\n".join([header_line, split_line, *body_lines])
+
+
+def parse_app_versions_content(content: str) -> dict:
+    result = {}
+    for raw_line in (content or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("+") and line.endswith("+"):
+            continue
+
+        row_match = re.match(r"^\|\s*(?P<c1>[^|]+?)\s*\|\s*(?P<c2>[^|]+?)\s*\|$", line)
+        if row_match:
+            c1 = row_match.group("c1").strip()
+            c2 = row_match.group("c2").strip()
+            if c1.lower() == "package_name" and c2.lower() == "version_name":
+                continue
+            if c1:
+                result[c1] = c2
+            continue
+
+        kv_match = re.match(
+            r"^(?P<pkg>[A-Za-z0-9_\\.]+)\s*(?:versin|version|版本)?\s*[:：]\s*(?P<ver>.+)$",
+            line,
+            re.IGNORECASE,
+        )
+        if kv_match:
+            result[kv_match.group("pkg").strip()] = kv_match.group("ver").strip()
+    return result
+
+
+def build_app_versions_compare(job_id_1: str, job_id_2: str, text_a: str, text_b: str) -> dict:
+    data_1 = parse_app_versions_content(text_a)
+    data_2 = parse_app_versions_content(text_b)
+    if not data_1 and not data_2:
+        raise RuntimeError("两份结果都无法解析版本信息")
+
+    all_packages = sorted(set(data_1.keys()) | set(data_2.keys()))
+    rows = []
+    same_count = 0
+    changed_count = 0
+    only_1_count = 0
+    only_2_count = 0
+    diff_rows = []
+
+    for pkg in all_packages:
+        version_1 = data_1.get(pkg)
+        version_2 = data_2.get(pkg)
+        if version_1 is None:
+            diff_type = "仅结果B存在"
+            only_2_count += 1
+        elif version_2 is None:
+            diff_type = "仅结果A存在"
+            only_1_count += 1
+        elif version_1 == version_2:
+            diff_type = "一致"
+            same_count += 1
+        else:
+            diff_type = "版本变化"
+            changed_count += 1
+
+        row = {
+            "package_name": pkg,
+            "version_a": version_1 or "-",
+            "version_b": version_2 or "-",
+            "diff_type": diff_type,
+        }
+        rows.append(row)
+        if diff_type != "一致":
+            diff_rows.append((row["package_name"], row["version_a"], row["version_b"], row["diff_type"]))
+
+    if diff_rows:
+        comparison_text = _render_ascii_table(
+            ("package_name", "version_a", "version_b", "diff_type"),
+            diff_rows,
+        )
+    else:
+        comparison_text = "两份结果版本完全一致。"
+
+    markdown_rows = [
+        (row["package_name"], row["version_a"], row["version_b"], row["diff_type"])
+        for row in rows
+    ]
+    markdown = "\n".join(
+        [
+            "# 应用版本差异对比",
+            "",
+            f"- 结果A: {job_id_1}",
+            f"- 结果B: {job_id_2}",
+            f"- 总包数: {len(all_packages)}",
+            f"- 一致: {same_count}",
+            f"- 版本变化: {changed_count}",
+            f"- 仅A存在: {only_1_count}",
+            f"- 仅B存在: {only_2_count}",
+            "",
+            _render_markdown_table(("包名", "结果A版本", "结果B版本", "差异类型"), markdown_rows),
+            "",
+        ]
+    )
+
+    return {
+        "summary": {
+            "total_packages": len(all_packages),
+            "same_count": same_count,
+            "changed_count": changed_count,
+            "only_a_count": only_1_count,
+            "only_b_count": only_2_count,
+        },
+        "rows": rows,
+        "comparison_text": comparison_text,
+        "markdown": markdown,
+    }
+
+
+def build_app_versions_report(job_id: str, content: str, updated_at: str) -> dict:
+    parsed = parse_app_versions_content(content)
+    rows = [{"package_name": pkg, "version_name": ver} for pkg, ver in sorted(parsed.items())]
+    table_rows = [(row["package_name"], row["version_name"]) for row in rows]
+    markdown = "\n".join(
+        [
+            "# 版本检查结果",
+            "",
+            f"- 任务ID: {job_id}",
+            f"- 更新时间: {updated_at}",
+            f"- 条目数: {len(rows)}",
+            "",
+            _render_markdown_table(("包名", "版本号"), table_rows),
+            "",
+        ]
+    )
+    return {
+        "rows": rows,
+        "rows_count": len(rows),
+        "markdown": markdown,
+    }
+
+
+def build_check_app_history_item(
+    job_id: str,
+    job_status: str,
+    created_at: str,
+    updated_ts: float,
+    result_file: Path,
+    source: str,
+    files: list,
+) -> dict:
+    rows_count = 0
+    has_result = result_file.exists()
+    if has_result:
+        try:
+            text = result_file.read_text(encoding="utf-8", errors="ignore")
+            rows_count = len(parse_app_versions_content(text))
+        except Exception:
+            rows_count = 0
+    updated_at = datetime.fromtimestamp(updated_ts).strftime("%Y%m%d_%H%M%S")
+    return {
+        "job_id": job_id,
+        "status": job_status,
+        "created_at": created_at or updated_at,
+        "updated_at": updated_at,
+        "result_file": "app_versions.txt" if has_result else None,
+        "rows_count": rows_count,
+        "has_result": has_result,
+        "source": source,
+        "files": files,
+        "_updated_ts": updated_ts,
+    }
+
+
 def run_device_info(
     device_id: str,
     out_dir: Path,
@@ -445,6 +628,28 @@ def run_store_install_apps(
         raise RuntimeError(f"部分应用未确认安装完成: {sorted(list(still))}")
 
     hooks.progress(100, "安装流程完成")
+
+
+def parse_wm_size(output: str) -> list:
+    candidates = []
+    m = re.search(r"Override size:\s*(\d+)x(\d+)", output or "")
+    if m:
+        candidates.append((int(m.group(1)), int(m.group(2))))
+    m = re.search(r"Physical size:\s*(\d+)x(\d+)", output or "")
+    if m:
+        candidates.append((int(m.group(1)), int(m.group(2))))
+    m = re.search(r"(\d+)x(\d+)", output or "")
+    if m:
+        any_size = (int(m.group(1)), int(m.group(2)))
+        if any_size not in candidates:
+            candidates.append(any_size)
+    return candidates
+
+
+def ratio_point(ratio: tuple, size: Optional[tuple]) -> tuple:
+    if size:
+        return int(size[0] * ratio[0]), int(size[1] * ratio[1])
+    return int(1080 * ratio[0]), int(2340 * ratio[1])
 
 
 def run_app_died_monitor(
