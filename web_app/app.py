@@ -2043,6 +2043,7 @@ def preview_interpretation(task_id, filename):
 
 if __name__ == '__main__':
     import socket
+    import os
 
     app = create_app()
     
@@ -2064,6 +2065,18 @@ if __name__ == '__main__':
     threaded = bool(server_cfg.get('threaded', True))
 
     display_host = host if host not in ('0.0.0.0', '::') else local_ip
+    simpleperf_root = os.getenv("SIMPLEPERF_ROOT", "").strip()
+    llvm_readelf = os.getenv("LLVM_READELF", "").strip()
+    llvm_readobj = os.getenv("LLVM_READOBJ", "").strip()
+    simpleperf_cfg = APP_SETTINGS.get("utilities_webadb", {}).get("simpleperf", {})
+    ndk_path = ""
+    if isinstance(simpleperf_cfg, dict):
+        ndk_path = str(simpleperf_cfg.get("ndk_path", "")).strip()
+    print("simpleperf 配置（服务器端）:")
+    print(f"  SIMPLEPERF_ROOT: {simpleperf_root or '-'}")
+    print(f"  LLVM_READELF: {llvm_readelf or '-'}")
+    print(f"  LLVM_READOBJ: {llvm_readobj or '-'}")
+    print(f"  app.yaml ndk_path: {ndk_path or '-'}")
     print(f"本地访问: http://127.0.0.1:{port}")
     print(f"局域网访问: http://{display_host}:{port}")
     print(f"数据保留时间: {DATA_RETENTION_DAYS}天")

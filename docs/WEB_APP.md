@@ -104,6 +104,48 @@ MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 最大文件大小（默认500MB）
 ALLOWED_EXTENSIONS = {'txt', 'zip'}      # 允许的文件类型
 ```
 
+## simpleperf 配置说明（服务器端）
+
+simpleperf 抓取与解析均发生在服务器端，需配置以下之一：
+
+1. 使用服务器上的 Android NDK（推荐）
+
+设置 `web_app/config/app.yaml`：
+
+```yaml
+utilities_webadb:
+  simpleperf:
+    ndk_path: "/path/to/ndk"
+```
+
+2. 使用服务器上的 simpleperf 资源目录（必须）
+
+通过环境变量指定：
+
+```bash
+export SIMPLEPERF_ROOT=/path/to/simpleperf
+```
+
+目录需包含：
+
+```
+bin/android/<arch>/simpleperf
+report_html.py
+report_html.js
+simpleperf_report_lib.py
+simpleperf_utils.py
+bin/linux/x86_64/libsimpleperf_report.so
+```
+
+3. （可选）指定 readelf/readobj 路径
+
+```bash
+export LLVM_READELF=/path/to/llvm-readelf
+export LLVM_READOBJ=/path/to/llvm-readobj
+```
+
+> 以上配置均在服务器端生效，局域网用户仅通过浏览器访问，无需配置。
+
 ## 与原有 CLI 工具的关系
 
 本 Web 应用完全复用了原 Collie 工具中的解析逻辑，只是将交互方式从命令行改为 Web 界面。分析结果与原工具完全一致。

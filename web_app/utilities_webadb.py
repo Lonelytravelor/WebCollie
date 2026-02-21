@@ -797,6 +797,18 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 f"[simpleperf] start package={package_name} duration={duration}\n",
             )
             ndk_path = str(params.get("ndk_path") or _SIMPLEPERF_SETTINGS.get("ndk_path") or "").strip() or None
+            if ndk_path:
+                _append_log(job["stdout_path"], f"[simpleperf] ndk_path={ndk_path}\n")
+            simpleperf_root = os.getenv("SIMPLEPERF_ROOT", "").strip()
+            llvm_readelf = os.getenv("LLVM_READELF", "").strip()
+            llvm_readobj = os.getenv("LLVM_READOBJ", "").strip()
+            _append_log(
+                job["stdout_path"],
+                "[simpleperf] server_config "
+                f"SIMPLEPERF_ROOT={simpleperf_root or '-'} "
+                f"LLVM_READELF={llvm_readelf or '-'} "
+                f"LLVM_READOBJ={llvm_readobj or '-'}\n",
+            )
             try:
                 run_simpleperf_pipeline(
                     package_name=package_name,
