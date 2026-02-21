@@ -67,13 +67,13 @@ class MeminfoCollector(BaseCollector):
 
     def start(self):
         meminfo_output = dump_mem.get_meminfo(device_id=self.device_id)
-        with open(self.meminfo_file, "a") as f:
+            with open(self.meminfo_file, "a", encoding="utf-8") as f:
             f.write(f"测试前 - \n{'='*50}\n")
             f.write(meminfo_output + "\n")
 
     def stop(self):
         meminfo_output = dump_mem.get_meminfo(device_id=self.device_id)
-        with open(self.meminfo_file, "a") as f:
+            with open(self.meminfo_file, "a", encoding="utf-8") as f:
             f.write(f"\n测试后 - \n{'='*50}\n")
             f.write(meminfo_output + "\n")
         print("🔴 Meminfo记录已停止")
@@ -87,13 +87,13 @@ class VmstatCollector(BaseCollector):
 
     def start(self):
         vmstat_output = dump_mem.get_vmstat(device_id=self.device_id)
-        with open(self.vmstat_file, "a") as f:
+            with open(self.vmstat_file, "a", encoding="utf-8") as f:
             f.write(f"测试前 - \n{'='*50}\n")
             f.write(vmstat_output + "\n")
 
     def stop(self):
         vmstat_output = dump_mem.get_vmstat(device_id=self.device_id)
-        with open(self.vmstat_file, "a") as f:
+            with open(self.vmstat_file, "a", encoding="utf-8") as f:
             f.write(f"\n测试后 - \n{'='*50}\n")
             f.write(vmstat_output + "\n")
         print("🔴 Vmstat记录已停止")
@@ -109,13 +109,13 @@ class GreclaimParmCollector(BaseCollector):
 
     def start(self):
         output = _capture_adb_shell('cat /sys/kernel/mi_reclaim/greclaim_parm', device_id=self.device_id)
-        with open(self.output_file, "a") as f:
+            with open(self.output_file, "a", encoding="utf-8") as f:
             f.write(f"测试前 - \n{'='*50}\n")
             f.write(output + "\n")
 
     def stop(self):
         output = _capture_adb_shell('cat /sys/kernel/mi_reclaim/greclaim_parm', device_id=self.device_id)
-        with open(self.output_file, "a") as f:
+            with open(self.output_file, "a", encoding="utf-8") as f:
             f.write(f"\n测试后 - \n{'='*50}\n")
             f.write(output + "\n")
         print("🔴 Greclaim参数记录已停止")
@@ -131,13 +131,13 @@ class ProcessUseCountCollector(BaseCollector):
 
     def start(self):
         output = _capture_adb_shell('cat /sys/kernel/mi_mempool/process_use_count', device_id=self.device_id)
-        with open(self.output_file, "a") as f:
+            with open(self.output_file, "a", encoding="utf-8") as f:
             f.write(f"测试前 - \n{'='*50}\n")
             f.write(output + "\n")
 
     def stop(self):
         output = _capture_adb_shell('cat /sys/kernel/mi_mempool/process_use_count', device_id=self.device_id)
-        with open(self.output_file, "a") as f:
+            with open(self.output_file, "a", encoding="utf-8") as f:
             f.write(f"\n测试后 - \n{'='*50}\n")
             f.write(output + "\n")
         print("🔴 process_use_count记录已停止")

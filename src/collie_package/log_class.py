@@ -55,7 +55,7 @@ class LogcatRecorder:
 
     def _record_logcat(self):
         try:
-            self.log_file = open(self.output_file, "w", buffering=1)
+            self.log_file = open(self.output_file, "w", buffering=1, encoding="utf-8")
             subprocess.run(self._adb_prefix() + ["logcat", "-b", "all", "-c"])
             time.sleep(3)
 
@@ -132,10 +132,8 @@ class OOMAdjLogger:
 
     def _get_pid(self, package):
         try:
-            find_pid_cmd = f"adb shell pidof {package}"
             result = subprocess.run(
-                find_pid_cmd,
-                shell=True,
+                ["adb", "shell", "pidof", package],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -153,10 +151,8 @@ class OOMAdjLogger:
 
     def _get_oomadj(self, pid):
         try:
-            find_adj_cmd = f"adb shell cat /proc/{pid}/oom_score_adj 2>/dev/null"
             result = subprocess.run(
-                find_adj_cmd,
-                shell=True,
+                ["adb", "shell", "cat", f"/proc/{pid}/oom_score_adj"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -187,7 +183,7 @@ class OOMAdjLogger:
         if self.log_thread:
             self.log_thread.join(timeout=2.0)
 
-        with open(self.output_file, "w", newline="") as csvfile:
+        with open(self.output_file, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
             headers = ["Package"] + [f"T+{i}s" for i in range(len(self.log_data))]
             writer.writerow(headers)
@@ -301,7 +297,7 @@ def analyze_oomadj_csv(csv_file, report_file="oomadj_report.txt", plot_file="oom
 
 
 def generate_report(results, report_file, plot_file):
-    with open(report_file, "w") as f:
+    with open(report_file, "w", encoding="utf-8") as f:
         f.write("=" * 60 + "\n")
         f.write("OOMAdj 监控分析报告 (重点关注进程存活)\n")
         f.write("=" * 60 + "\n\n")

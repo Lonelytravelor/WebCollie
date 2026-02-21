@@ -1,13 +1,26 @@
 import os
+import subprocess
 import re
 from datetime import datetime
 
 from .. import state, tools
 
 # 执行adb shell命令并获取输出结果
-def execute_adb_shell_command(command):
-    result = os.popen(command).read().strip()
-    return result
+def execute_adb_shell_command(command, timeout: int = 20) -> str:
+    if isinstance(command, str):
+        cmd = command.strip().split()
+    else:
+        cmd = list(command)
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return (result.stdout or "").strip()
+    except Exception:
+        return ""
 
 # 从给定的文本中提取版本号（通过匹配versionName后的版本字符串）
 def extract_version_name(text):
@@ -31,7 +44,7 @@ def check_app_version():
         print("\n======================================")
         for app_package in app_list:
 
-            command = f"adb shell dumpsys package {app_package}"
+            command = ["adb", "shell", "dumpsys", "package", app_package]
             output = execute_adb_shell_command(command)
             version_name = extract_version_name(output)
 

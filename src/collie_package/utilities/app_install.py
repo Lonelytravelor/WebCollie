@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shlex
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -44,9 +45,9 @@ SIZE_CANDIDATES: List[Tuple[int, int]] = []
 
 def adb_command(cmd: str, timeout: int = 30) -> str:
     """执行 ADB 命令并返回输出"""
+    args = shlex.split(cmd)
     result = subprocess.run(
-        f"adb {cmd}",
-        shell=True,
+        ["adb"] + args,
         capture_output=True,
         text=True,
         timeout=timeout,

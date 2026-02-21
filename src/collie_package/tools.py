@@ -5,6 +5,7 @@ from typing import List, Optional
 import json
 import logging
 import os
+import shlex
 import subprocess
 import time
 
@@ -240,23 +241,31 @@ def run_pre_start_commands(commands, device_id=None, timeout=20):
     if not commands:
         return
 
+    def _needs_shell(value: str) -> bool:
+        return any(token in value for token in ("|", ">", "<", "&&", "||", ";"))
+
     for raw_cmd in commands:
         if not raw_cmd:
             continue
 
         cmd = raw_cmd
-        if device_id and raw_cmd.strip().startswith("adb ") and " -s " not in raw_cmd:
-            parts = raw_cmd.split()
-            if "-s" not in parts:
-                parts.insert(1, "-s")
-                parts.insert(2, device_id)
-                cmd = " ".join(parts)
+        if isinstance(raw_cmd, str):
+            if device_id and raw_cmd.strip().startswith("adb ") and " -s " not in raw_cmd:
+                parts = raw_cmd.split()
+                if "-s" not in parts:
+                    parts.insert(1, "-s")
+                    parts.insert(2, device_id)
+                    cmd = " ".join(parts)
 
         print(f"执行预准备命令: {cmd}")
         try:
+            use_shell = isinstance(cmd, str) and _needs_shell(cmd)
+            run_cmd = cmd
+            if isinstance(cmd, str) and not use_shell:
+                run_cmd = shlex.split(cmd)
             result = subprocess.run(
-                cmd,
-                shell=True,
+                run_cmd,
+                shell=use_shell,
                 capture_output=True,
                 text=True,
                 timeout=timeout,

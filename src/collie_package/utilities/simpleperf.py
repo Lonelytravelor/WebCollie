@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import pkgutil
+import shlex
 import shutil
 import subprocess
 import sys
@@ -95,9 +96,11 @@ class SimpleperfProfiler:
                 raise RuntimeError(f"推送失败: {push_result.stderr}")
             
             # 设置设备上的执行权限
-            chmod_cmd = f"adb shell chmod 777 {full_file_path}"
             chmod_result = subprocess.run(
-                chmod_cmd, shell=True, capture_output=True, text=True, timeout=10
+                ["adb", "shell", "chmod", "777", full_file_path],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if chmod_result.returncode != 0:
                 raise RuntimeError(f"设置权限失败: {chmod_result.stderr}")
@@ -207,7 +210,11 @@ class SimpleperfProfiler:
             print(f"正在执行: {description}")
         
         try:
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60)
+            if isinstance(command, str):
+                cmd = shlex.split(command.strip())
+            else:
+                cmd = list(command)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if check_result and result.returncode != 0:
                 print(f"命令执行失败: {command}")
                 print(f"错误信息: {result.stderr}")

@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 import sys
 import threading
@@ -57,13 +58,15 @@ def _load_preset_monitor_targets():
 def _run_adb_command(command, timeout=10):
     """执行ADB命令并返回输出，支持超时"""
     try:
+        cmd = command
+        if isinstance(command, str):
+            cmd = shlex.split(command)
         result = subprocess.run(
-            command,
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             timeout=timeout,
-            shell=True
         )
         return result.stdout, True
     except subprocess.TimeoutExpired:
@@ -76,7 +79,7 @@ def _save_command_output(command, filename, max_retries=3, timeout=10):
     while retries < max_retries:
         output, success = _run_adb_command(command, timeout)
         if success:
-            with open(filename, 'w') as f:
+            with open(filename, 'w', encoding='utf-8') as f:
                 f.write(output)
             return True
         retries += 1
@@ -90,7 +93,7 @@ def _run_and_save_command_output(command, filename, max_retries=3, timeout=10):
     while retries < max_retries:
         output, success = _run_adb_command(command, timeout)
         if success:
-            with open(filename, 'w') as f:
+            with open(filename, 'w', encoding='utf-8') as f:
                 f.write(output)
             return output, True
         retries += 1

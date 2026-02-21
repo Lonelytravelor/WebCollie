@@ -72,6 +72,7 @@ def create_app(test_config=None):
         MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
         DATA_FOLDER=str(DEFAULT_DATA_FOLDER),
         DATA_RETENTION_DAYS=DATA_RETENTION_DAYS,
+        TRUST_PROXY_HEADERS=bool(APP_SETTINGS.get('server', {}).get('trust_proxy_headers', False)),
     )
     if test_config:
         app.config.update(test_config)
@@ -89,14 +90,25 @@ def create_app(test_config=None):
 
 def get_client_ip():
     """获取客户端真实IP"""
-    forwarded_for = request.headers.get('X-Forwarded-For')
-    if forwarded_for:
-        ip = forwarded_for.split(',')[0].strip()
-    elif request.headers.get('X-Real-IP'):
-        ip = request.headers.get('X-Real-IP')
+    trust_proxy = bool(current_app.config.get('TRUST_PROXY_HEADERS', False))
+    if trust_proxy:
+        forwarded_for = request.headers.get('X-Forwarded-For')
+        if forwarded_for:
+            ip = forwarded_for.split(',')[0].strip()
+        elif request.headers.get('X-Real-IP'):
+            ip = request.headers.get('X-Real-IP')
+        else:
+            ip = request.remote_addr
     else:
         ip = request.remote_addr
     return ip or 'unknown'
+
+
+def _is_within_dir(base: Path, target: Path) -> bool:
+    try:
+        return os.path.commonpath([str(base), str(target)]) == str(base)
+    except Exception:
+        return False
 
 def get_user_folder(ip):
     """获取用户专属目录"""
@@ -1293,7 +1305,9 @@ def download_result(task_id, filename):
         if not result_dir.exists():
             return jsonify({'error': '任务不存在'}), 404
     
-    file_path = result_dir / filename
+    file_path = (result_dir / filename).resolve()
+    if not _is_within_dir(result_dir.resolve(), file_path):
+        return jsonify({'error': '非法文件路径'}), 400
     
     if not file_path.exists():
         return jsonify({'error': '文件不存在'}), 404
@@ -2014,7 +2028,9 @@ def preview_interpretation(task_id, filename):
     if not file_name or not file_name.endswith('.html') or not file_name.startswith('ai_interpret_'):
         return '无效的预览文件', 400
 
-    file_path = result_dir / file_name
+    file_path = (result_dir / file_name).resolve()
+    if not _is_within_dir(result_dir.resolve(), file_path):
+        return '无效的预览文件', 400
     if not file_path.exists():
         return '文件不存在', 404
 
@@ -2044,7 +2060,7 @@ if __name__ == '__main__':
     server_cfg = APP_SETTINGS.get('server', {})
     host = str(server_cfg.get('host', '0.0.0.0'))
     port = int(server_cfg.get('port', 5000))
-    debug = bool(server_cfg.get('debug', True))
+    debug = bool(server_cfg.get('debug', False))
     threaded = bool(server_cfg.get('threaded', True))
 
     display_host = host if host not in ('0.0.0.0', '::') else local_ip

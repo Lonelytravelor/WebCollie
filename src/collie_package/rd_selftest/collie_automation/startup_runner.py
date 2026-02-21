@@ -37,15 +37,23 @@ class AppLaunchRunner:
     def get_pid(self, package_name: str) -> Optional[int]:
         """使用 awk 获取应用主进程 PID。"""
         try:
-            if self.device_id:
-                cmd = f'adb -s {self.device_id} shell ps | awk \'$9=="{package_name}" {{print $2}}\''
-            else:
-                cmd = f'adb shell ps | awk \'$9=="{package_name}" {{print $2}}\''
             result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=5
+                self._adb_prefix() + ["shell", "ps", "-A", "-o", "PID,NAME"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
-            pids = [int(pid) for pid in result.stdout.split() if pid.isdigit()]
-            return pids[0] if pids else None
+            if result.returncode != 0:
+                raise subprocess.CalledProcessError(result.returncode, "adb shell ps")
+
+            for line in (result.stdout or "").splitlines()[1:]:
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                pid, name = parts[0], parts[1]
+                if name == package_name and pid.isdigit():
+                    return int(pid)
+            return None
         except Exception as e:
             print(f"PID获取失败 {package_name}: {str(e)}")
             return None
@@ -259,18 +267,23 @@ def _adb_prefix(device_id: str) -> List[str]:
 def get_pid(package_name: str, device_id: str = "") -> Optional[int]:
     """便捷方法：单次获取应用主进程 PID。"""
     try:
-        if device_id:
-            cmd = (
-                f'adb -s {device_id} shell ps | '
-                f'awk \'$9=="{package_name}" {{print $2}}\''
-            )
-        else:
-            cmd = f'adb shell ps | awk \'$9=="{package_name}" {{print $2}}\''
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=5
+            _adb_prefix(device_id) + ["shell", "ps", "-A", "-o", "PID,NAME"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
-        pids = [int(pid) for pid in result.stdout.split() if pid.isdigit()]
-        return pids[0] if pids else None
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(result.returncode, "adb shell ps")
+
+        for line in (result.stdout or "").splitlines()[1:]:
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            pid, name = parts[0], parts[1]
+            if name == package_name and pid.isdigit():
+                return int(pid)
+        return None
     except Exception as e:
         print(f"PID获取失败 {package_name}: {str(e)}")
         return None

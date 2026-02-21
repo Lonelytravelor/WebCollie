@@ -242,7 +242,7 @@ def monitor_log():
         if should_meminfo:
             meminfo_output = dump_mem.get_meminfo()
             meminfo_file = os.path.join(state.FILE_DIR, f"meminfo{timestamp}.txt")
-            with open(meminfo_file, 'a') as f:
+        with open(meminfo_file, 'a', encoding='utf-8') as f:
                 f.write(f"测试前 - \n{'='*50}\n")
                 f.write(meminfo_output + "\n")
         if should_monitor_died:
@@ -273,7 +273,7 @@ def monitor_log():
         if should_meminfo:
             meminfo_output = dump_mem.get_meminfo()
             meminfo_file = os.path.join(state.FILE_DIR, f"meminfo{timestamp}.txt")
-            with open(meminfo_file, 'a') as f:
+        with open(meminfo_file, 'a', encoding='utf-8') as f:
                 f.write(f"\n测试后 - \n{'='*50}\n")
                 f.write(meminfo_output + "\n")
         if should_monitor_died:
