@@ -88,9 +88,24 @@ def _auto_detect_ndk_path() -> Optional[str]:
     return None
 
 
+def _resolve_llvm_readelf() -> Optional[Path]:
+    candidate = Path(__file__).resolve().parents[1] / "resources" / "llvm-readelf"
+    if candidate.exists() and candidate.is_file():
+        try:
+            os.chmod(candidate, 0o755)
+        except Exception:
+            pass
+        return candidate
+    return None
+
+
 def _resolve_llvm_readobj() -> Optional[Path]:
     candidate = Path(__file__).resolve().parents[1] / "resources" / "llvm-readobj"
     if candidate.exists() and candidate.is_file():
+        try:
+            os.chmod(candidate, 0o755)
+        except Exception:
+            pass
         return candidate
     return None
 
@@ -222,20 +237,44 @@ def run_simpleperf_pipeline(
             log(f"[simpleperf] 自动检测到 NDK: {ndk_path}")
 
     if not ndk_path:
-        llvm_readobj = _resolve_llvm_readobj()
-        if llvm_readobj:
+        llvm_readelf = _resolve_llvm_readelf()
+        llvm_readobj = _resolve_llvm_readobj() if not llvm_readelf else None
+        if llvm_readelf or llvm_readobj:
             shim_root = out_dir / "ndk-shim"
             shim_bin = shim_root / "toolchains" / "llvm" / "prebuilt" / "linux-x86_64" / "bin"
             shim_bin.mkdir(parents=True, exist_ok=True)
             shim = shim_bin / "llvm-readelf"
-            shim.write_text(
-                "#!/usr/bin/env sh\n"
-                f"\"{llvm_readobj}\" \"$@\"\n",
-                encoding="utf-8",
-            )
+            if llvm_readelf:
+                shim.write_text(
+                    "#!/usr/bin/env sh\n"
+                    f"\"{llvm_readelf}\" \"$@\"\n",
+                    encoding="utf-8",
+                )
+            else:
+                shim.write_text(
+                    "#!/usr/bin/env sh\n"
+                    "if [ \"$1\" = \"--help\" ] || [ \"$1\" = \"-h\" ]; then\n"
+                    f"  \"{llvm_readobj}\" --help >/dev/null 2>&1 || true\n"
+                    "  exit 0\n"
+                    "fi\n"
+                    "if [ \"$1\" = \"-h\" ]; then\n"
+                    f"  exec \"{llvm_readobj}\" --file-headers --elf-output-style=GNU \"$2\"\n"
+                    "fi\n"
+                    "if [ \"$1\" = \"-n\" ]; then\n"
+                    f"  exec \"{llvm_readobj}\" --notes --elf-output-style=GNU \"$2\"\n"
+                    "fi\n"
+                    "if [ \"$1\" = \"-SW\" ]; then\n"
+                    f"  exec \"{llvm_readobj}\" --sections --section-details --elf-output-style=GNU \"$2\"\n"
+                    "fi\n"
+                    f"exec \"{llvm_readobj}\" --elf-output-style=GNU \"$@\"\n",
+                    encoding="utf-8",
+                )
             os.chmod(shim, 0o755)
             ndk_path = str(shim_root)
-            log(f"[simpleperf] 使用 llvm-readobj 兼容器: {llvm_readobj}")
+            if llvm_readelf:
+                log(f"[simpleperf] 使用内置 llvm-readelf: {llvm_readelf}")
+            else:
+                log(f"[simpleperf] 使用 llvm-readobj 兼容器: {llvm_readobj}")
 
     if ndk_path:
         html_cmd += ['--ndk_path', str(ndk_path)]

@@ -76,6 +76,22 @@
             border: 1px solid rgba(255, 255, 255, 0.7);
         }
 
+        .info-tip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+            cursor: help;
+            background: #f1f5f9;
+        }
+
         .upload-area {
             border: 2px dashed var(--border);
             border-radius: 16px;
@@ -2781,7 +2797,9 @@ python3 adb_agent.py \
 
                 <div class="subtab-panel" id="rdSubTab-simpleperf">
                     <div class="card">
-                        <div class="card-title">simpleperf 抓取</div>
+                        <div class="card-title">simpleperf 抓取
+                            <span class="info-tip" title="解析阶段需要 llvm-readelf（发生在服务器端）。局域网用户仅是访问网页，无法配置服务器环境。请由服务器管理员执行：1) 临时方式（不改系统环境变量）：export ANDROID_NDK_HOME=/path/to/ndk 后启动服务；2) 服务器配置文件：web_app/config/app.yaml 中 utilities_webadb.simpleperf.ndk_path: \"/path/to/ndk\"；3) 放置可执行文件：src/collie_package/resources/llvm-readelf。">i</span>
+                        </div>
                         <div class="muted">手动操作场景后抓取 simpleperf。抓取期间请不要关闭页面。</div>
                         <div class="utilities-grid" style="margin-top:12px;">
                             <div>
