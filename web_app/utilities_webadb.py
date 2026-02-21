@@ -64,6 +64,7 @@ validate_package_name = getattr(_ADB_API, 'validate_package_name')
 
 _APP_SETTINGS = load_app_settings()
 _UTIL_SETTINGS = _APP_SETTINGS.get('utilities_webadb', {})
+_SIMPLEPERF_SETTINGS = _UTIL_SETTINGS.get('simpleperf', {}) if isinstance(_UTIL_SETTINGS, dict) else {}
 
 AUTO_SKIP_GAME_PACKAGES = set(
     _UTIL_SETTINGS.get(
@@ -795,6 +796,7 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 job["stdout_path"],
                 f"[simpleperf] start package={package_name} duration={duration}\n",
             )
+            ndk_path = str(params.get("ndk_path") or _SIMPLEPERF_SETTINGS.get("ndk_path") or "").strip() or None
             try:
                 run_simpleperf_pipeline(
                     package_name=package_name,
@@ -804,6 +806,7 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                     run_cmd=lambda cmd, timeout: _run_cmd(job, cmd, timeout=timeout),
                     progress=lambda p, m: _job_set_progress(job, p, m),
                     log=lambda text: _append_log(job["stdout_path"], f"{text}\n"),
+                    ndk_path=ndk_path,
                 )
             finally:
                 pass

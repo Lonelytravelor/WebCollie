@@ -1,3 +1,4 @@
+import os
 import sys
 import threading
 import time
@@ -65,6 +66,35 @@ def _resolve_report_script() -> Path:
     return candidate
 
 
+def _auto_detect_ndk_path() -> Optional[str]:
+    for key in ("ANDROID_NDK_HOME", "ANDROID_NDK_ROOT", "NDK_HOME"):
+        value = os.getenv(key, "").strip()
+        if value and Path(value).exists():
+            return value
+
+    home = Path.home()
+    sdk_ndk = home / "Android" / "Sdk" / "ndk"
+    if sdk_ndk.exists():
+        candidates = sorted([p for p in sdk_ndk.iterdir() if p.is_dir()], reverse=True)
+        if candidates:
+            return str(candidates[0])
+
+    for base in (Path("/opt"), Path("/usr/local")):
+        if not base.exists():
+            continue
+        candidates = sorted(base.glob("android-ndk-*"), reverse=True)
+        if candidates:
+            return str(candidates[0])
+    return None
+
+
+def _resolve_llvm_readobj() -> Optional[Path]:
+    candidate = Path(__file__).resolve().parents[1] / "resources" / "llvm-readobj"
+    if candidate.exists() and candidate.is_file():
+        return candidate
+    return None
+
+
 def run_simpleperf_pipeline(
     package_name: str,
     duration_s: int,
@@ -73,6 +103,7 @@ def run_simpleperf_pipeline(
     run_cmd: Callable[[object, int], str],
     progress: Callable[[int, str], None],
     log: Callable[[str], None],
+    ndk_path: Optional[str] = None,
 ) -> Dict[str, Path]:
     if not package_name:
         raise SimpleperfPipelineError('包名不能为空')
@@ -185,6 +216,26 @@ def run_simpleperf_pipeline(
         str(local_html),
         '--no_browser',
     ]
+    if not ndk_path:
+        ndk_path = _auto_detect_ndk_path()
+        if ndk_path:
+            log(f"[simpleperf] 自动检测到 NDK: {ndk_path}")
+
+    if ndk_path:
+        html_cmd += ['--ndk_path', str(ndk_path)]
+    else:
+        llvm_readobj = _resolve_llvm_readobj()
+        if llvm_readobj:
+            shim = out_dir / "llvm-readelf"
+            shim.write_text(
+                "#!/usr/bin/env sh\n"
+                f"\"{llvm_readobj}\" \"$@\"\n",
+                encoding="utf-8",
+            )
+            os.chmod(shim, 0o755)
+            log(f"[simpleperf] 使用 llvm-readobj 兼容器: {llvm_readobj}")
+            current_path = os.environ.get("PATH", "")
+            html_cmd = ["env", f"PATH={str(out_dir)}:{current_path}"] + html_cmd
     run_cmd(html_cmd, 240)
 
     progress(95, '清理设备临时文件')

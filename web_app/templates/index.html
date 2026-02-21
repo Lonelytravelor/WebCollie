@@ -2782,7 +2782,7 @@ python3 adb_agent.py \
                 <div class="subtab-panel" id="rdSubTab-simpleperf">
                     <div class="card">
                         <div class="card-title">simpleperf 抓取</div>
-                        <div class="muted">手动操作场景后抓取 simpleperf。</div>
+                        <div class="muted">手动操作场景后抓取 simpleperf。抓取期间请不要关闭页面。</div>
                         <div class="utilities-grid" style="margin-top:12px;">
                             <div>
                                 <label>包名</label>
@@ -2795,6 +2795,12 @@ python3 adb_agent.py \
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="task-btn view" onclick="runPerfSimpleperf()">开始 simpleperf 抓取</button>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <div id="utilPerfProgressText" class="muted">等待开始</div>
+                            <div class="progress-bar" style="margin-top:8px;">
+                                <div id="utilPerfProgressFill" class="progress-fill" style="width:0%;"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="card" style="margin-top:12px;">
@@ -2970,6 +2976,20 @@ python3 adb_agent.py \
             utilPerfPreviewEmpty.style.display = 'none';
         }
 
+        function _updateSimpleperfProgress(state) {
+            if (!utilPerfProgressText || !utilPerfProgressFill) return;
+            const action = String(state.action || '');
+            if (action !== 'simpleperf_record') {
+                utilPerfProgressText.textContent = '等待开始';
+                utilPerfProgressFill.style.width = '0%';
+                return;
+            }
+            const progress = Number.isFinite(Number(state.progress)) ? Number(state.progress) : 0;
+            utilPerfProgressFill.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+            const msg = state.statusText || state.status || '';
+            utilPerfProgressText.textContent = msg || `进度 ${progress}%`;
+        }
+
         function _renderUtilityPanelFromTabState(tabState) {
             const state = tabState || _createUtilityTabState();
             if (utilLog) {
@@ -2986,6 +3006,7 @@ python3 adb_agent.py \
                 utilStatus.style.color = state.statusError ? '#b42318' : '#667085';
             }
             _updateSimpleperfPreview(state);
+            _updateSimpleperfProgress(state);
             updatePauseResumeButtons(state.status || '', !!state.paused);
             updateMonitorPauseResumeButtons(state.status || '', !!state.paused, state.action || '');
             updateContPauseResumeButtons(state.status || '', !!state.paused, state.action || '');
@@ -3836,6 +3857,8 @@ python3 adb_agent.py \
         const utilInstallInterval = document.getElementById('utilInstallInterval');
         const utilPerfPackage = document.getElementById('utilPerfPackage');
         const utilPerfDuration = document.getElementById('utilPerfDuration');
+        const utilPerfProgressText = document.getElementById('utilPerfProgressText');
+        const utilPerfProgressFill = document.getElementById('utilPerfProgressFill');
         const utilPerfPreviewFrame = document.getElementById('utilPerfPreviewFrame');
         const utilPerfPreviewEmpty = document.getElementById('utilPerfPreviewEmpty');
         const utilMonitorPackageSelect = document.getElementById('utilMonitorPackageSelect');
@@ -5261,9 +5284,14 @@ python3 adb_agent.py \
             utilityStdoutOffset = 0;
             utilityStderrOffset = 0;
             if (toolLogContainer) toolLogContainer.style.display = '';
-            if (utilLogPanelBody && !utilLogPanelBody.classList.contains('open')) {
-                utilLogPanelBody.classList.add('open');
-                if (utilLogPanelToggleHint) utilLogPanelToggleHint.textContent = '收起';
+            if (action !== 'simpleperf_record') {
+                if (utilLogPanelBody && !utilLogPanelBody.classList.contains('open')) {
+                    utilLogPanelBody.classList.add('open');
+                    if (utilLogPanelToggleHint) utilLogPanelToggleHint.textContent = '收起';
+                }
+            } else if (utilLogPanelBody) {
+                utilLogPanelBody.classList.remove('open');
+                if (utilLogPanelToggleHint) utilLogPanelToggleHint.textContent = '展开';
             }
 
             try {
@@ -5295,7 +5323,9 @@ python3 adb_agent.py \
                 utilityPollTimer = setInterval(_pollUtilityJob, 1200);
                 _pollUtilityJob();
             } catch (err) {
-                _appendUtilityLog([`[error] ${err.message || err}`], '[stderr] ');
+                if (action !== 'simpleperf_record') {
+                    _appendUtilityLog([`[error] ${err.message || err}`], '[stderr] ');
+                }
                 setUtilityStatus(`启动失败: ${err.message}`, true);
             }
         }
@@ -5573,13 +5603,10 @@ python3 adb_agent.py \
                 alert('请先输入包名');
                 return;
             }
-            if (utilLogPanelBody && !utilLogPanelBody.classList.contains('open')) {
-                utilLogPanelBody.classList.add('open');
-                if (utilLogPanelToggleHint) utilLogPanelToggleHint.textContent = '收起';
-            }
             if (toolLogContainer) toolLogContainer.style.display = '';
             setUtilityStatus('任务创建中...');
-            _appendUtilityLog([`[simpleperf] 准备启动抓取: ${pkg} (${duration || 10}s)`]);
+            if (utilPerfProgressText) utilPerfProgressText.textContent = `准备启动抓取: ${pkg} (${duration || 10}s)`;
+            if (utilPerfProgressFill) utilPerfProgressFill.style.width = '0%';
             runUtilityActionWithPayload('simpleperf_record', {
                 package: pkg,
                 duration_s: Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 10,

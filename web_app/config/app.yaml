@@ -8,6 +8,10 @@ storage:
   data_folder: "user_data"
   data_retention_days: 7
 
+utilities_webadb:
+  simpleperf:
+    ndk_path: ""
+
 upload:
   allowed_extensions:
     - "txt"
