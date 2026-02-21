@@ -2044,6 +2044,7 @@ def preview_interpretation(task_id, filename):
 if __name__ == '__main__':
     import socket
     import os
+    from collie_package import config_loader
 
     app = create_app()
     
@@ -2065,6 +2066,13 @@ if __name__ == '__main__':
     threaded = bool(server_cfg.get('threaded', True))
 
     display_host = host if host not in ('0.0.0.0', '::') else local_ip
+    cfg_dir = config_loader.resolve_web_config_dir()
+    yaml_available = getattr(config_loader, "yaml", None) is not None
+    app_yaml_path = (cfg_dir / "app.yaml") if cfg_dir else None
+    print("web 配置加载:")
+    print(f"  resolve_web_config_dir: {cfg_dir or '-'}")
+    print(f"  app.yaml exists: {bool(app_yaml_path and app_yaml_path.exists())}")
+    print(f"  PyYAML available: {yaml_available}")
     simpleperf_root = os.getenv("SIMPLEPERF_ROOT", "").strip()
     llvm_readelf = os.getenv("LLVM_READELF", "").strip()
     llvm_readobj = os.getenv("LLVM_READOBJ", "").strip()

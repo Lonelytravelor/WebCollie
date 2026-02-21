@@ -809,6 +809,17 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 f"LLVM_READELF={llvm_readelf or '-'} "
                 f"LLVM_READOBJ={llvm_readobj or '-'}\n",
             )
+            if not ndk_path:
+                try:
+                    runtime_cfg = load_app_settings()
+                    runtime_simpleperf = runtime_cfg.get("utilities_webadb", {}).get("simpleperf", {})
+                    if isinstance(runtime_simpleperf, dict):
+                        runtime_ndk = str(runtime_simpleperf.get("ndk_path", "")).strip()
+                        if runtime_ndk:
+                            ndk_path = runtime_ndk
+                            _append_log(job["stdout_path"], f"[simpleperf] ndk_path(runtime)={ndk_path}\n")
+                except Exception as exc:
+                    _append_log(job["stderr_path"], f"[simpleperf] 读取配置失败: {exc}\n")
             try:
                 run_simpleperf_pipeline(
                     package_name=package_name,
