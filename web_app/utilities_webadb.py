@@ -25,7 +25,6 @@ from collie_package.utilities.web_tasks import (
     run_device_info,
     run_meminfo_live,
     run_meminfo_summary,
-    run_monkey,
     run_package_version,
     run_prepare_apps,
     run_compile_apps,
@@ -784,27 +783,6 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 hooks=hooks,
                 device_online_checker=lambda: _is_device_online(device_id, owner_ip=job.get("ip")),
             )
-
-        if action == "monkey_run":
-            package_name = str(params.get("package", "")).strip()
-            _validate_package(package_name)
-            events = params.get("events", 200)
-            throttle = params.get("throttle_ms", 300)
-            seed = params.get("seed")
-            _validate_positive_int(events, "events", 1, 2000000)
-            _validate_positive_int(throttle, "throttle_ms", 0, 10000)
-
-            if seed is not None:
-                _validate_positive_int(seed, "seed", 1, 2147483647)
-            run_monkey(
-                package_name=package_name,
-                events=int(events),
-                throttle_ms=int(throttle),
-                seed=seed,
-                out_dir=out_dir,
-                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
-            )
-            return
 
         if action == "simpleperf_record":
             from collie_package.utilities.simpleperf_pipeline import run_simpleperf_pipeline

@@ -2639,7 +2639,7 @@ python3 adb_agent.py \
                     <button class="subtab-btn active" data-subtab="app_died_moniter" onclick="switchRdSubTab('app_died_moniter')">存活监控</button>
                     <button class="subtab-btn" data-subtab="check_app_alive" onclick="switchRdSubTab('check_app_alive')">存活检查</button>
                     <button class="subtab-btn" data-subtab="cont_startup_stay" onclick="switchRdSubTab('cont_startup_stay')">连续启动-驻留</button>
-                    <button class="subtab-btn" data-subtab="simpleperf" onclick="switchRdSubTab('simpleperf')">性能工具</button>
+                    <button class="subtab-btn" data-subtab="simpleperf" onclick="switchRdSubTab('simpleperf')">simpleperf抓取</button>
                 </div>
 
                 <div class="subtab-panel active" id="rdSubTab-app_died_moniter">
@@ -2781,16 +2781,12 @@ python3 adb_agent.py \
 
                 <div class="subtab-panel" id="rdSubTab-simpleperf">
                     <div class="card">
-                        <div class="card-title">simpleperf（性能工具）</div>
-                        <div class="muted">可结合目标包名执行 monkey / simpleperf。</div>
+                        <div class="card-title">simpleperf 抓取</div>
+                        <div class="muted">手动操作场景后抓取 simpleperf。</div>
                         <div class="utilities-grid" style="margin-top:12px;">
                             <div>
                                 <label>包名</label>
                                 <input id="utilPerfPackage" type="text" value="com.android.settings">
-                            </div>
-                            <div>
-                                <label>Monkey 事件数</label>
-                                <input id="utilPerfMonkeyEvents" type="number" min="1" max="2000000" value="200">
                             </div>
                             <div>
                                 <label>Simpleperf 时长（秒）</label>
@@ -2798,8 +2794,7 @@ python3 adb_agent.py \
                             </div>
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="runPerfMonkey()">运行 Monkey</button>
-                            <button class="task-btn view" onclick="runPerfSimpleperf()">运行 Simpleperf</button>
+                            <button class="task-btn view" onclick="runPerfSimpleperf()">开始 simpleperf 抓取</button>
                         </div>
                     </div>
                     <div class="card" style="margin-top:12px;">
@@ -3840,7 +3835,6 @@ python3 adb_agent.py \
         const utilPresetMaxWait = document.getElementById('utilPresetMaxWait');
         const utilInstallInterval = document.getElementById('utilInstallInterval');
         const utilPerfPackage = document.getElementById('utilPerfPackage');
-        const utilPerfMonkeyEvents = document.getElementById('utilPerfMonkeyEvents');
         const utilPerfDuration = document.getElementById('utilPerfDuration');
         const utilPerfPreviewFrame = document.getElementById('utilPerfPreviewFrame');
         const utilPerfPreviewEmpty = document.getElementById('utilPerfPreviewEmpty');
@@ -5562,16 +5556,6 @@ python3 adb_agent.py \
             runUtilityActionWithPayload('app_died_monitor', {
                 package: pkg,
                 interval_sec: 1,
-            });
-        }
-
-        function runPerfMonkey() {
-            const pkg = (utilPerfPackage.value || '').trim();
-            const events = Number(utilPerfMonkeyEvents.value || 200);
-            runUtilityActionWithPayload('monkey_run', {
-                package: pkg,
-                events: Number.isFinite(events) ? Math.max(1, Math.floor(events)) : 200,
-                throttle_ms: 300,
             });
         }
 

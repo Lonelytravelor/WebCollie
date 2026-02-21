@@ -85,6 +85,7 @@ def run_simpleperf_pipeline(
     if 'arm' in str(arch_raw).lower() and '64' not in str(arch_raw).lower():
         call_graph_option = '-g'
 
+    progress(15, '推送 simpleperf 到设备')
     local_simpleperf = _resolve_device_simpleperf(arch_raw)
     report_script = _resolve_report_script()
 
@@ -94,10 +95,12 @@ def run_simpleperf_pipeline(
     local_report = out_dir / 'simpleperf_report.txt'
     local_html = out_dir / 'simpleperf_flamegraph.html'
 
-    progress(20, '推送 simpleperf 到设备')
     run_cmd(adb_command_builder(['shell', 'rm', '-f', remote_simpleperf]), 60)
     run_cmd(adb_command_builder(['push', str(local_simpleperf), remote_simpleperf]), 120)
     run_cmd(adb_command_builder(['shell', 'chmod', '755', remote_simpleperf]), 60)
+
+    progress(25, '准备抓取（请在设备上复现问题）')
+    log('已开始抓取，请在设备上复现需要分析的场景。')
 
     progress(35, '录制 simpleperf 数据')
     base_cmd = [
@@ -129,6 +132,9 @@ def run_simpleperf_pipeline(
 
     progress(55, '拉取 perf.data')
     run_cmd(adb_command_builder(['pull', remote_data, str(local_data)]), 180)
+
+    progress(60, '抓取完成，开始解析')
+    log('抓取完成，开始解析并生成报告。')
 
     progress(70, '生成文本报告')
     report = run_cmd(adb_command_builder(['shell', remote_simpleperf, 'report', '-i', remote_data]), 180)
