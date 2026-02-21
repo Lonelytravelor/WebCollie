@@ -2803,8 +2803,14 @@ python3 adb_agent.py \
                         <div class="muted">手动操作场景后抓取 simpleperf。抓取期间请不要关闭页面。</div>
                         <div class="utilities-grid" style="margin-top:12px;">
                             <div>
-                                <label>包名</label>
-                                <input id="utilPerfPackage" type="text" value="com.android.settings">
+                                <label class="app-list-label">请选择抓取应用</label>
+                                <div class="app-list-select-wrap">
+                                    <select id="utilPerfPackageSelect" class="app-list-select"></select>
+                                </div>
+                            </div>
+                            <div id="utilPerfCustomWrap" style="display:none;">
+                                <label class="app-list-label">自定义包名</label>
+                                <input id="utilPerfPackageCustom" type="text" placeholder="com.example.app">
                             </div>
                             <div>
                                 <label>Simpleperf 时长（秒）</label>
@@ -3873,7 +3879,9 @@ python3 adb_agent.py \
         const utilPresetPreview = document.getElementById('utilPresetPreview');
         const utilPresetMaxWait = document.getElementById('utilPresetMaxWait');
         const utilInstallInterval = document.getElementById('utilInstallInterval');
-        const utilPerfPackage = document.getElementById('utilPerfPackage');
+        const utilPerfPackageSelect = document.getElementById('utilPerfPackageSelect');
+        const utilPerfCustomWrap = document.getElementById('utilPerfCustomWrap');
+        const utilPerfPackageCustom = document.getElementById('utilPerfPackageCustom');
         const utilPerfDuration = document.getElementById('utilPerfDuration');
         const utilPerfProgressText = document.getElementById('utilPerfProgressText');
         const utilPerfProgressFill = document.getElementById('utilPerfProgressFill');
@@ -4169,6 +4177,12 @@ python3 adb_agent.py \
             utilMonitorCustomWrap.style.display = isCustom ? 'block' : 'none';
         }
 
+        function _setPerfCustomInputVisibility() {
+            if (!utilPerfPackageSelect || !utilPerfCustomWrap) return;
+            const isCustom = (utilPerfPackageSelect.value || '') === '__custom__';
+            utilPerfCustomWrap.style.display = isCustom ? 'block' : 'none';
+        }
+
         function setSceneCardsLocked(locked) {
             sceneSelectionLocked = !!locked;
             const activeScene = String(selectedScene || '').trim();
@@ -4447,6 +4461,56 @@ python3 adb_agent.py \
             _setMonitorCustomInputVisibility();
         }
 
+        async function _loadPerfPackageOptions(presets) {
+            if (!utilPerfPackageSelect) return;
+            utilPerfPackageSelect.innerHTML = '';
+            const presetNames = Array.isArray(presets) ? presets.map((p) => String(p.name || '')) : [];
+            const preferred = [
+                '动态性能模型(TOP20)',
+                '动态性能模型',
+                'TOP 20 APP',
+            ];
+            let targetPreset = preferred.find((n) => presetNames.includes(n)) || '';
+            if (!targetPreset) {
+                targetPreset = presetNames.find((n) => n.includes('动态性能模型')) || '';
+            }
+            if (!targetPreset && presetNames.length) {
+                targetPreset = presetNames[0];
+            }
+
+            let packages = [];
+            if (targetPreset) {
+                const resp = await fetch(`/api/utilities/presets/${encodeURIComponent(targetPreset)}?limit=200`);
+                const data = await resp.json();
+                if (resp.ok) {
+                    packages = Array.isArray(data.packages)
+                        ? data.packages.map((x) => String(x || '').trim()).filter(Boolean)
+                        : [];
+                }
+            }
+
+            if (!packages.length) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = '未发现可抓取进程';
+                utilPerfPackageSelect.appendChild(opt);
+            } else {
+                packages.forEach((pkg, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = pkg;
+                    opt.textContent = pkg;
+                    if (idx === 0) opt.selected = true;
+                    utilPerfPackageSelect.appendChild(opt);
+                });
+            }
+
+            const customOpt = document.createElement('option');
+            customOpt.value = '__custom__';
+            customOpt.textContent = '自行输入';
+            utilPerfPackageSelect.appendChild(customOpt);
+            _setPerfCustomInputVisibility();
+        }
+
         async function refreshUtilityDevices() {
             try {
                 const resp = await fetch('/api/adb/devices');
@@ -4523,6 +4587,7 @@ python3 adb_agent.py \
                         utilContPresetPreview.textContent = '未发现预设';
                     }
                     await _loadMonitorPackageOptions([]);
+                    await _loadPerfPackageOptions([]);
                     await _loadKillFocusPackageOptions([]);
                     return;
                 }
@@ -4550,6 +4615,7 @@ python3 adb_agent.py \
                     }
                 });
                 await _loadMonitorPackageOptions(presets);
+                await _loadPerfPackageOptions(presets);
                 await _loadKillFocusPackageOptions(presets);
                 await loadPresetPreview();
                 await loadCheckPresetPreview();
@@ -4645,6 +4711,9 @@ python3 adb_agent.py \
         }
         if (utilMonitorPackageSelect) {
             utilMonitorPackageSelect.addEventListener('change', _setMonitorCustomInputVisibility);
+        }
+        if (utilPerfPackageSelect) {
+            utilPerfPackageSelect.addEventListener('change', _setPerfCustomInputVisibility);
         }
         if (killFocusPackageSelect) {
             killFocusPackageSelect.addEventListener('change', _setKillFocusCustomInputVisibility);
@@ -5613,17 +5682,25 @@ python3 adb_agent.py \
             });
         }
 
+        function _resolvePerfPackage() {
+            const selected = (utilPerfPackageSelect && utilPerfPackageSelect.value ? utilPerfPackageSelect.value : '').trim();
+            if (selected === '__custom__') {
+                return (utilPerfPackageCustom && utilPerfPackageCustom.value ? utilPerfPackageCustom.value : '').trim();
+            }
+            return selected;
+        }
+
         function runPerfSimpleperf() {
-            const pkg = (utilPerfPackage.value || '').trim();
+            const pkg = _resolvePerfPackage();
             const duration = Number(utilPerfDuration.value || 10);
             if (!pkg) {
-                setUtilityStatus('请先输入包名', true);
-                alert('请先输入包名');
+                setUtilityStatus('请先选择抓取应用', true);
+                alert('请先选择抓取应用');
                 return;
             }
             if (toolLogContainer) toolLogContainer.style.display = '';
             setUtilityStatus('任务创建中...');
-            if (utilPerfProgressText) utilPerfProgressText.textContent = `准备启动抓取: ${pkg} (${duration || 10}s)`;
+            if (utilPerfProgressText) utilPerfProgressText.textContent = `准备抓取前: ${pkg} (${duration || 10}s)`;
             if (utilPerfProgressFill) utilPerfProgressFill.style.width = '0%';
             runUtilityActionWithPayload('simpleperf_record', {
                 package: pkg,

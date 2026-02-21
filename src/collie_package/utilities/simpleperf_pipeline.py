@@ -139,6 +139,7 @@ def run_simpleperf_pipeline(
         raise SimpleperfPipelineError('duration_s 不能小于 1')
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    progress(5, '准备抓取前：校验 simpleperf 资源')
     _assert_simpleperf_resources()
     progress(10, '检测设备架构')
     arch_raw = run_cmd(adb_command_builder(['shell', 'uname', '-m']), 30)
@@ -146,7 +147,7 @@ def run_simpleperf_pipeline(
     if 'arm' in str(arch_raw).lower() and '64' not in str(arch_raw).lower():
         call_graph_option = '-g'
 
-    progress(15, '推送 simpleperf 到设备')
+    progress(15, '准备抓取前：推送 simpleperf 到设备')
     local_simpleperf = _resolve_device_simpleperf(arch_raw)
     report_script = _resolve_report_script()
 
@@ -156,117 +157,136 @@ def run_simpleperf_pipeline(
     local_report = out_dir / 'simpleperf_report.txt'
     local_html = out_dir / 'simpleperf_flamegraph.html'
 
-    run_cmd(adb_command_builder(['shell', 'rm', '-f', remote_simpleperf]), 60)
-    run_cmd(adb_command_builder(['push', str(local_simpleperf), remote_simpleperf]), 120)
-    run_cmd(adb_command_builder(['shell', 'chmod', '755', remote_simpleperf]), 60)
-
-    progress(25, '准备抓取（请在设备上复现问题）')
-    log('已开始抓取，请在设备上复现需要分析的场景。')
-
-    progress(28, '检查应用是否已启动')
-    start_wait = time.time()
-    pid = ""
-    while time.time() - start_wait < 15:
+    def _cleanup_device(with_progress: bool) -> None:
+        if with_progress:
+            progress(95, '清理设备临时文件')
         try:
-            pid = (run_cmd(adb_command_builder(['shell', 'pidof', package_name]), 10) or "").strip()
-        except Exception:
-            pid = ""
-        if pid:
-            break
-        time.sleep(1.0)
-    if not pid:
-        raise SimpleperfPipelineError("未检测到应用进程，请先启动应用后再抓取")
-
-    progress(35, '抓取中（simpleperf 录制进行中）')
-    base_cmd = [
-        'shell',
-        remote_simpleperf,
-        'record',
-        '--app',
-        package_name,
-        '--duration',
-        str(duration_s),
-        '-o',
-        remote_data,
-    ]
-    record_cmds = [
-        base_cmd + ['-e', 'cpu-clock'] + call_graph_option.split(),
-        base_cmd + call_graph_option.split(),
-    ]
-    last_error: Optional[Exception] = None
-    stop_event = threading.Event()
-
-    def _progress_ticker():
-        start_ts = time.time()
-        while not stop_event.is_set():
-            elapsed = int(time.time() - start_ts)
-            if duration_s > 0:
-                ratio = min(1.0, elapsed / float(duration_s))
-                current = 35 + int(ratio * 18)
-            else:
-                current = 35
-            progress(current, f"抓取中 {min(elapsed, duration_s)}/{duration_s}s")
-            time.sleep(1.0)
-
-    ticker = threading.Thread(target=_progress_ticker, daemon=True)
-    ticker.start()
-
-    for record_cmd in record_cmds:
-        try:
-            run_cmd(adb_command_builder(record_cmd), duration_s + 180)
-            last_error = None
-            break
+            run_cmd(adb_command_builder(['shell', 'rm', '-f', remote_data]), 60)
         except Exception as exc:  # noqa: BLE001
-            last_error = exc
-            log(f'[warn] 录制失败，尝试备用方案: {exc}')
-    stop_event.set()
-    ticker.join(timeout=1.0)
-    if last_error:
-        raise SimpleperfPipelineError(f'录制失败: {last_error}')
+            log(f'[warn] 清理设备数据失败: {exc}')
+        try:
+            run_cmd(adb_command_builder(['shell', 'rm', '-f', remote_simpleperf]), 60)
+        except Exception as exc:  # noqa: BLE001
+            log(f'[warn] 清理 simpleperf 失败: {exc}')
 
-    progress(55, '抓取完成，拉取 perf.data')
-    run_cmd(adb_command_builder(['pull', remote_data, str(local_data)]), 180)
-
-    progress(60, '抓取完成，开始解析')
-    log('抓取完成，开始解析并生成报告。')
-
-    progress(70, '生成文本报告')
-    report = run_cmd(adb_command_builder(['shell', remote_simpleperf, 'report', '-i', remote_data]), 180)
-    local_report.write_text(str(report or ''), encoding='utf-8')
-
-    progress(85, '生成 HTML 火焰图')
-    html_cmd = [
-        sys.executable,
-        str(report_script),
-        '-i',
-        str(local_data),
-        '-o',
-        str(local_html),
-        '--no_browser',
-    ]
-    if ndk_path:
-        readelf_path = Path(ndk_path) / "toolchains" / "llvm" / "prebuilt" / "linux-x86_64" / "bin" / "llvm-readelf"
-        if not readelf_path.exists():
-            raise SimpleperfPipelineError(f"NDK 路径无效，未找到 llvm-readelf: {readelf_path}")
-
-    if not ndk_path:
-        ndk_path = _auto_detect_ndk_path()
-        if ndk_path:
-            log(f"[simpleperf] 自动检测到 NDK: {ndk_path}")
-
-    if ndk_path:
-        html_cmd += ['--ndk_path', str(ndk_path)]
-    run_cmd(html_cmd, 240)
-
-    progress(95, '清理设备临时文件')
     try:
-        run_cmd(adb_command_builder(['shell', 'rm', '-f', remote_data]), 60)
-    except Exception as exc:  # noqa: BLE001
-        log(f'[warn] 清理设备临时文件失败: {exc}')
+        run_cmd(adb_command_builder(['shell', 'rm', '-f', remote_simpleperf]), 60)
+        run_cmd(adb_command_builder(['push', str(local_simpleperf), remote_simpleperf]), 120)
+        run_cmd(adb_command_builder(['shell', 'chmod', '755', remote_simpleperf]), 60)
 
-    progress(100, '完成')
-    return {
-        'perf_data': local_data,
-        'report_txt': local_report,
-        'report_html': local_html,
-    }
+        progress(25, '准备抓取前：请在设备上复现场景')
+        log('已开始抓取，请在设备上复现需要分析的场景。')
+
+        progress(28, '准备抓取前：检查应用是否已启动')
+        start_wait = time.time()
+        pid = ""
+        while time.time() - start_wait < 15:
+            try:
+                pid = (run_cmd(adb_command_builder(['shell', 'pidof', package_name]), 10) or "").strip()
+            except Exception:
+                pid = ""
+            if pid:
+                break
+            time.sleep(1.0)
+        if not pid:
+            raise SimpleperfPipelineError("未检测到应用进程，请先启动应用后再抓取")
+
+        progress(32, '开始抓取（simpleperf 录制中）')
+        base_cmd = [
+            'shell',
+            remote_simpleperf,
+            'record',
+            '--app',
+            package_name,
+            '--duration',
+            str(duration_s),
+            '-o',
+            remote_data,
+        ]
+        record_cmds = [
+            base_cmd + ['-e', 'cpu-clock'] + call_graph_option.split(),
+            base_cmd + call_graph_option.split(),
+        ]
+        last_error: Optional[Exception] = None
+        stop_event = threading.Event()
+
+        def _progress_ticker():
+            start_ts = time.time()
+            while not stop_event.is_set():
+                elapsed = int(time.time() - start_ts)
+                remain = max(0, duration_s - elapsed)
+                if duration_s > 0:
+                    ratio = min(1.0, elapsed / float(duration_s))
+                    current = 32 + int(ratio * 18)
+                else:
+                    current = 32
+                progress(current, f"抓取中，剩余 {remain}s")
+                time.sleep(1.0)
+
+        ticker = threading.Thread(target=_progress_ticker, daemon=True)
+        ticker.start()
+
+        for record_cmd in record_cmds:
+            try:
+                run_cmd(adb_command_builder(record_cmd), duration_s + 180)
+                last_error = None
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                log(f'[warn] 录制失败，尝试备用方案: {exc}')
+        stop_event.set()
+        ticker.join(timeout=1.0)
+        if last_error:
+            raise SimpleperfPipelineError(f'录制失败: {last_error}')
+
+        progress(55, '抓取完成，拉取 perf.data')
+        run_cmd(adb_command_builder(['pull', remote_data, str(local_data)]), 180)
+
+        progress(65, '开始解析并生成报告')
+        log('抓取完成，开始解析并生成报告。')
+
+        progress(72, '生成文本报告')
+        report = run_cmd(adb_command_builder(['shell', remote_simpleperf, 'report', '-i', remote_data]), 180)
+        local_report.write_text(str(report or ''), encoding='utf-8')
+
+        progress(85, '生成 HTML 火焰图')
+        html_cmd = [
+            sys.executable,
+            str(report_script),
+            '-i',
+            str(local_data),
+            '-o',
+            str(local_html),
+            '--no_browser',
+        ]
+        if ndk_path:
+            readelf_path = (
+                Path(ndk_path)
+                / "toolchains"
+                / "llvm"
+                / "prebuilt"
+                / "linux-x86_64"
+                / "bin"
+                / "llvm-readelf"
+            )
+            if not readelf_path.exists():
+                raise SimpleperfPipelineError(f"NDK 路径无效，未找到 llvm-readelf: {readelf_path}")
+
+        if not ndk_path:
+            ndk_path = _auto_detect_ndk_path()
+            if ndk_path:
+                log(f"[simpleperf] 自动检测到 NDK: {ndk_path}")
+
+        if ndk_path:
+            html_cmd += ['--ndk_path', str(ndk_path)]
+        run_cmd(html_cmd, 240)
+
+        _cleanup_device(with_progress=True)
+        progress(100, '完成')
+        return {
+            'perf_data': local_data,
+            'report_txt': local_report,
+            'report_html': local_html,
+        }
+    finally:
+        _cleanup_device(with_progress=False)
