@@ -5260,6 +5260,11 @@ python3 adb_agent.py \
             if (utilProgressFill) utilProgressFill.style.width = '0%';
             utilityStdoutOffset = 0;
             utilityStderrOffset = 0;
+            if (toolLogContainer) toolLogContainer.style.display = '';
+            if (utilLogPanelBody && !utilLogPanelBody.classList.contains('open')) {
+                utilLogPanelBody.classList.add('open');
+                if (utilLogPanelToggleHint) utilLogPanelToggleHint.textContent = '收起';
+            }
 
             try {
                 const resp = await fetch('/api/utilities/run', {
@@ -5290,6 +5295,7 @@ python3 adb_agent.py \
                 utilityPollTimer = setInterval(_pollUtilityJob, 1200);
                 _pollUtilityJob();
             } catch (err) {
+                _appendUtilityLog([`[error] ${err.message || err}`], '[stderr] ');
                 setUtilityStatus(`启动失败: ${err.message}`, true);
             }
         }
@@ -5571,6 +5577,8 @@ python3 adb_agent.py \
                 utilLogPanelBody.classList.add('open');
                 if (utilLogPanelToggleHint) utilLogPanelToggleHint.textContent = '收起';
             }
+            if (toolLogContainer) toolLogContainer.style.display = '';
+            setUtilityStatus('任务创建中...');
             _appendUtilityLog([`[simpleperf] 准备启动抓取: ${pkg} (${duration || 10}s)`]);
             runUtilityActionWithPayload('simpleperf_record', {
                 package: pkg,

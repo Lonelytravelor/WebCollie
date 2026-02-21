@@ -1,4 +1,6 @@
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Callable, Dict, Optional, Sequence
 
@@ -102,6 +104,20 @@ def run_simpleperf_pipeline(
     progress(25, '准备抓取（请在设备上复现问题）')
     log('已开始抓取，请在设备上复现需要分析的场景。')
 
+    progress(28, '检查应用是否已启动')
+    start_wait = time.time()
+    pid = ""
+    while time.time() - start_wait < 15:
+        try:
+            pid = (run_cmd(adb_command_builder(['shell', 'pidof', package_name]), 10) or "").strip()
+        except Exception:
+            pid = ""
+        if pid:
+            break
+        time.sleep(1.0)
+    if not pid:
+        raise SimpleperfPipelineError("未检测到应用进程，请先启动应用后再抓取")
+
     progress(35, '抓取中（simpleperf 录制进行中）')
     base_cmd = [
         'shell',
@@ -119,6 +135,23 @@ def run_simpleperf_pipeline(
         base_cmd + call_graph_option.split(),
     ]
     last_error: Optional[Exception] = None
+    stop_event = threading.Event()
+
+    def _progress_ticker():
+        start_ts = time.time()
+        while not stop_event.is_set():
+            elapsed = int(time.time() - start_ts)
+            if duration_s > 0:
+                ratio = min(1.0, elapsed / float(duration_s))
+                current = 35 + int(ratio * 18)
+            else:
+                current = 35
+            progress(current, f"抓取中 {min(elapsed, duration_s)}/{duration_s}s")
+            time.sleep(1.0)
+
+    ticker = threading.Thread(target=_progress_ticker, daemon=True)
+    ticker.start()
+
     for record_cmd in record_cmds:
         try:
             run_cmd(adb_command_builder(record_cmd), duration_s + 180)
@@ -127,6 +160,8 @@ def run_simpleperf_pipeline(
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             log(f'[warn] 录制失败，尝试备用方案: {exc}')
+    stop_event.set()
+    ticker.join(timeout=1.0)
     if last_error:
         raise SimpleperfPipelineError(f'录制失败: {last_error}')
 
