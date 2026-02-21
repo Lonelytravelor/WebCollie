@@ -40,7 +40,7 @@ from web_app.utilities_webadb import register_utilities_routes  # pyright: ignor
 
 from collie_package.config_loader import load_app_settings
 from collie_package.log_tools import parse_cont_startup
-from collie_package.log_tools.parse_cont_startup import detect_last_complete_cont_startup_window
+from collie_package.log_tools.parse_cont_startup import detect_last_complete_cont_startup_window, detect_cont_startup_windows
 
 bp = Blueprint('collie_web', __name__)
 
@@ -132,49 +132,89 @@ def _build_memory_analysis_bundle(events, summary, highlight_apps):
     include_all = not highlight_set
     process_metrics = defaultdict(lambda: defaultdict(list))
     highlight_events = []
+    all_kill_events = []
+    highlight_timeline = []
     max_events = 400
 
     for idx, event in enumerate(events):
         etype = event.get('type')
-        if etype not in ('kill', 'lmk'):
+        if etype not in ('kill', 'lmk', 'start'):
             continue
         if event.get('is_subprocess'):
             continue
 
         base = event.get('process_name', '').split(':')[0]
+        event_time = event.get('time')
+        time_ts = int(event_time.timestamp() * 1000) if isinstance(event_time, datetime) else None
+        details = event.get('details') or {}
         metrics = pcs._extract_mem_metrics(event)
-        if not metrics:
+        if etype in ('kill', 'lmk') and not metrics:
             continue
 
+        if etype in ('kill', 'lmk'):
+            all_kill_events.append({
+                'event_id': idx + 1,
+                'process': base,
+                'type': etype,
+                'time': _format_event_time_ms(event_time),
+                'time_ts': time_ts,
+                'reason': pcs._extract_kill_reason(event),
+                'mem_free': metrics.get('mem_free') if metrics else None,
+                'file_pages': metrics.get('file_pages') if metrics else None,
+                'anon_pages': metrics.get('anon_pages') if metrics else None,
+                'swap_free': metrics.get('swap_free') if metrics else None,
+            })
+
         if include_all or base in highlight_set:
-            kill_info = (event.get('details') or {}).get('kill_info') or {}
+            kill_info = details.get('kill_info') or {}
             if isinstance(kill_info, list):
                 kill_info = kill_info[0] if kill_info else {}
             if etype == 'kill':
                 kill_type = kill_info.get('killTypeDesc') or kill_info.get('killType') or 'KILL'
-                adj = (event.get('details') or {}).get('proc_info', {}).get('adj')
+                adj = (details.get('proc_info') or {}).get('adj')
             else:
                 kill_type = 'LMK'
-                adj = (event.get('details') or {}).get('adj')
-            highlight_events.append({
+                adj = details.get('adj')
+
+            if etype in ('kill', 'lmk'):
+                highlight_events.append({
+                    'event_id': idx + 1,
+                    'process': base,
+                    'type': etype,
+                    'time': _format_event_time_ms(event_time),
+                    'time_ts': time_ts,
+                    'kill_type': kill_type,
+                    'adj': adj or '',
+                    'reason': pcs._extract_kill_reason(event),
+                    'mem_free': metrics.get('mem_free') if metrics else None,
+                    'file_pages': metrics.get('file_pages') if metrics else None,
+                    'anon_pages': metrics.get('anon_pages') if metrics else None,
+                    'swap_free': metrics.get('swap_free') if metrics else None,
+                })
+
+                bucket = process_metrics[base]
+                for metric_key, value in metrics.items():
+                    if value is not None:
+                        bucket[metric_key].append(value)
+
+            highlight_timeline.append({
                 'event_id': idx + 1,
                 'process': base,
                 'type': etype,
-                'time': _format_event_time_ms(event.get('time')),
-                'kill_type': kill_type,
+                'time': _format_event_time_ms(event_time),
+                'time_ts': time_ts,
+                'start_kind': details.get('start_kind') or '',
+                'launch_source': details.get('launch_source') or '',
+                'had_proc_start': bool(details.get('had_proc_start')),
+                'kill_type': kill_type if etype in ('kill', 'lmk') else '',
                 'adj': adj or '',
-                'mem_free': metrics.get('mem_free'),
-                'file_pages': metrics.get('file_pages'),
-                'anon_pages': metrics.get('anon_pages'),
-                'swap_free': metrics.get('swap_free'),
+                'reason': pcs._extract_kill_reason(event) if etype in ('kill', 'lmk') else '',
             })
-            bucket = process_metrics[base]
-            for metric_key, value in metrics.items():
-                if value is not None:
-                    bucket[metric_key].append(value)
 
     if len(highlight_events) > max_events:
         highlight_events = highlight_events[:max_events]
+    if len(all_kill_events) > max_events:
+        all_kill_events = all_kill_events[:max_events]
 
     pcs_calc_stats = pcs._calc_stats
     process_stats = []
@@ -224,6 +264,8 @@ def _build_memory_analysis_bundle(events, summary, highlight_apps):
         'highlight_processes': highlight_list,
         'available_processes': available_processes,
         'highlight_events': highlight_events,
+        'all_events': all_kill_events,
+        'highlight_timeline': highlight_timeline,
         'process_stats': process_stats,
         'low_memfree_kills': low_memfree_rows,
         'mem_stats': mem_stats,
@@ -386,52 +428,52 @@ def _run_kill_focus_analysis(
     try:
         resolved_file_path, cleanup_path, source_desc = pcs._resolve_log_input_path(file_path)
         events = pcs.parse_log_file(resolved_file_path)
+
+        if not events:
+            raise ValueError('日志中未解析到任何事件')
+
+        candidates = pcs._find_kill_candidates_for_package(events, pkg)
+        if not candidates:
+            raise ValueError(f'未找到包名 {pkg} 的 kill/lmk 事件')
+
+        selected = None
+        if target_event_idx is not None:
+            try:
+                selected_idx = int(target_event_idx)
+            except Exception:
+                raise ValueError('target_event_idx 必须是整数')
+            for idx, event in candidates:
+                if idx == selected_idx:
+                    selected = (idx, event)
+                    break
+            if selected is None:
+                raise ValueError('所选被杀事件不存在，请重新选择')
+        elif len(candidates) == 1:
+            selected = candidates[0]
+        else:
+            raise ValueError(f'包名 {pkg} 匹配到 {len(candidates)} 条被杀记录，请先选择目标记录')
+
+        event_idx, target_event = selected
+        report_text = pcs.build_kill_focus_report(
+            events=events,
+            source_desc=source_desc,
+            package_name=pkg,
+            target_event_idx=event_idx,
+            target_event=target_event,
+        )
+        context_info = pcs.extract_kill_focus_bugreport_context(
+            resolved_file_path,
+            target_event=target_event,
+            before_lines=300,
+            after_lines=100,
+        )
+        context_text = pcs.format_kill_focus_bugreport_context(context_info, source_desc=source_desc)
     finally:
         if cleanup_path and os.path.exists(cleanup_path):
             try:
                 os.remove(cleanup_path)
             except OSError:
                 pass
-
-    if not events:
-        raise ValueError('日志中未解析到任何事件')
-
-    candidates = pcs._find_kill_candidates_for_package(events, pkg)
-    if not candidates:
-        raise ValueError(f'未找到包名 {pkg} 的 kill/lmk 事件')
-
-    selected = None
-    if target_event_idx is not None:
-        try:
-            selected_idx = int(target_event_idx)
-        except Exception:
-            raise ValueError('target_event_idx 必须是整数')
-        for idx, event in candidates:
-            if idx == selected_idx:
-                selected = (idx, event)
-                break
-        if selected is None:
-            raise ValueError('所选被杀事件不存在，请重新选择')
-    elif len(candidates) == 1:
-        selected = candidates[0]
-    else:
-        raise ValueError(f'包名 {pkg} 匹配到 {len(candidates)} 条被杀记录，请先选择目标记录')
-
-    event_idx, target_event = selected
-    report_text = pcs.build_kill_focus_report(
-        events=events,
-        source_desc=source_desc,
-        package_name=pkg,
-        target_event_idx=event_idx,
-        target_event=target_event,
-    )
-    context_info = pcs.extract_kill_focus_bugreport_context(
-        resolved_file_path,
-        target_event=target_event,
-        before_lines=300,
-        after_lines=100,
-    )
-    context_text = pcs.format_kill_focus_bugreport_context(context_info, source_desc=source_desc)
 
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(report_text)
@@ -888,7 +930,8 @@ def run_analysis(task_id, scene, custom_apps, client_ip, mode='quick', time_rang
                 }
                 
                 try:
-                    auto_window = detect_last_complete_cont_startup_window(upload_path, apps, rounds=2)
+                    auto_windows = detect_cont_startup_windows(upload_path, apps, rounds=2)
+                    auto_window = auto_windows[0] if auto_windows else None
                     if auto_window:
                         confidence = auto_window.get('confidence', 'UNKNOWN')
                         start_time = auto_window.get('window_start')
@@ -949,7 +992,30 @@ def run_analysis(task_id, scene, custom_apps, client_ip, mode='quick', time_rang
                                 'start': start_time.isoformat() if start_time else None,
                                 'end': end_time.isoformat() if end_time else None
                             }
-                            tasks[task_id]['needs_confirm'] = False
+                            tasks[task_id]['auto_windows'] = [
+                                {
+                                    'index': idx,
+                                    'start': w.get('window_start').isoformat() if w.get('window_start') else None,
+                                    'end': w.get('window_end').isoformat() if w.get('window_end') else None,
+                                    'match_score': w.get('match_score', 0),
+                                    'matched_start_count': w.get('matched_start_count', 0),
+                                    'expected_count': w.get('expected_count', 0),
+                                    'mismatch_count': w.get('mismatch_count', 0),
+                                    'tolerance': w.get('tolerance', 0),
+                                    'confidence': w.get('confidence', 'UNKNOWN'),
+                                    'duration_sec': w.get('duration_sec', 0),
+                                    'tail_gap_sec': w.get('tail_gap_sec', 0),
+                                    'match_variant': w.get('match_variant', ''),
+                                }
+                                for idx, w in enumerate(auto_windows or [])
+                            ]
+                            tasks[task_id]['auto_window_default'] = max(len(auto_windows or []) - 1, 0)
+                            if auto_windows and len(auto_windows) > 1:
+                                tasks[task_id]['needs_confirm'] = True
+                                tasks[task_id]['status'] = 'paused'
+                                tasks[task_id]['message'] = '检测到多轮次自动匹配，请选择一个时间段继续分析'
+                            else:
+                                tasks[task_id]['needs_confirm'] = False
                     else:
                         auto_match_info["status"] = "未识别到满足顺序/数量要求的完整测试窗口"
                         with tasks_lock:
@@ -1158,6 +1224,9 @@ def get_status(task_id):
                 response['needs_confirm'] = True
                 response['confidence'] = task.get('confidence', 'UNKNOWN')
                 response['match_score'] = task.get('match_score', 0)
+            if task.get('auto_windows'):
+                response['auto_windows'] = task.get('auto_windows', [])
+                response['auto_window_default'] = task.get('auto_window_default', 0)
             
             if task['status'] == 'completed':
                 response['results'] = task.get('results', {})

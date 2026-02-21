@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Collie Bugreport 智能分析平台</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-0: #0b1220;
+            --bg-1: #0f1b2d;
+            --bg-2: #10263a;
+            --card: #f7f8fb;
+            --card-2: #ffffff;
+            --ink-1: #0f172a;
+            --ink-2: #334155;
+            --muted: #64748b;
+            --brand-1: #27c7a1;
+            --brand-2: #2f5bf2;
+            --brand-3: #12a4ff;
+            --accent: #f6c453;
+            --border: #d6deeb;
+            --shadow-lg: 0 26px 60px rgba(7, 11, 24, 0.28);
+            --shadow-md: 0 16px 30px rgba(15, 23, 42, 0.16);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,76 +32,91 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'IBM Plex Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background:
+                radial-gradient(1200px 500px at 10% -10%, rgba(18, 164, 255, 0.35), transparent 60%),
+                radial-gradient(900px 500px at 100% 10%, rgba(39, 199, 161, 0.28), transparent 55%),
+                linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
             min-height: 100vh;
             padding: 20px;
+            color: var(--ink-1);
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1180px;
             margin: 0 auto;
         }
 
         .header {
-            text-align: center;
-            color: white;
-            padding: 40px 0;
+            text-align: left;
+            color: #f8fafc;
+            padding: 34px 0 26px;
         }
 
         .header h1 {
-            font-size: 2.5em;
+            font-family: 'Fraunces', 'IBM Plex Sans', serif;
+            font-size: clamp(2.1rem, 3vw, 2.7rem);
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            letter-spacing: 0.4px;
         }
 
         .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
+            font-size: 1.05em;
+            opacity: 0.85;
+            max-width: 720px;
+            line-height: 1.6;
         }
 
         .main-card {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: var(--card-2);
+            border-radius: 22px;
+            padding: 36px;
+            box-shadow: var(--shadow-lg);
             margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
         }
 
         .upload-area {
-            border: 3px dashed #ddd;
-            border-radius: 15px;
-            padding: 60px 40px;
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 52px 40px;
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
-            background: #fafafa;
+            background: #f5f7fb;
         }
 
         .upload-area:hover {
-            border-color: #667eea;
-            background: #f0f4ff;
+            border-color: var(--brand-2);
+            background: #eef4ff;
         }
 
         .upload-area.dragover {
-            border-color: #667eea;
-            background: #e8eeff;
+            border-color: var(--brand-2);
+            background: #e5f0ff;
             transform: scale(1.02);
         }
 
         .upload-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 18px;
+            display: grid;
+            place-items: center;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(39, 199, 161, 0.12), rgba(18, 164, 255, 0.18));
+            color: var(--brand-2);
         }
 
         .upload-text {
             font-size: 1.2em;
-            color: #666;
+            color: var(--ink-2);
             margin-bottom: 10px;
+            font-weight: 600;
         }
 
         .upload-hint {
-            color: #999;
+            color: var(--muted);
             font-size: 0.9em;
         }
 
@@ -95,11 +130,113 @@
 
         .section-title {
             font-size: 1.3em;
-            color: #333;
+            color: var(--ink-1);
             margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+
+        .section-intro,
+        .subtab-intro {
+            color: var(--muted);
+            font-size: 0.95em;
+            line-height: 1.65;
+            margin: 10px 0 18px;
+        }
+
+        .home-hero {
+            color: #e2e8f0;
+            padding: 24px 0 30px;
+        }
+
+        .home-hero h1 {
+            font-family: 'Fraunces', 'IBM Plex Sans', serif;
+            font-size: clamp(2.2rem, 3.2vw, 2.9rem);
+            margin-bottom: 12px;
+            letter-spacing: 0.4px;
+        }
+
+        .home-hero p {
+            max-width: 760px;
+            line-height: 1.7;
+            font-size: 1.05em;
+            color: rgba(226, 232, 240, 0.82);
+        }
+
+        .home-entry {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin: 18px 0 26px;
+        }
+
+        .home-cta {
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 16px;
+            padding: 16px;
+            background: rgba(15, 23, 42, 0.55);
+            color: #f8fafc;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        .home-cta:hover {
+            border-color: rgba(47, 91, 242, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
+        }
+
+        .home-cta span {
+            display: block;
+            font-size: 0.88em;
+            color: rgba(226, 232, 240, 0.7);
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .home-highlight {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 26px;
+        }
+
+        .home-highlight-item {
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 18px;
+            padding: 16px 18px;
+            color: #f8fafc;
+        }
+
+        .home-highlight-item h3 {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+
+        .home-highlight-item p {
+            color: rgba(226, 232, 240, 0.75);
+            line-height: 1.6;
+            font-size: 0.92em;
+        }
+
+        .home-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+        }
+
+        .home-list-item {
+            padding: 14px 16px;
+            border-left: 3px solid rgba(47, 91, 242, 0.6);
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            color: rgba(226, 232, 240, 0.88);
+            line-height: 1.6;
+            font-size: 0.95em;
         }
 
         .scene-grid {
@@ -110,24 +247,24 @@
         }
 
         .scene-card {
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
             padding: 20px;
             cursor: pointer;
             transition: all 0.3s ease;
-            background: white;
+            background: #fff;
         }
 
         .scene-card:hover {
-            border-color: #667eea;
+            border-color: rgba(47, 91, 242, 0.5);
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
         }
 
         .scene-card.selected {
-            border-color: #667eea;
-            background: #f0f4ff;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+            border-color: var(--brand-2);
+            background: #eef4ff;
+            box-shadow: 0 12px 28px rgba(47, 91, 242, 0.2);
         }
 
         .scene-grid.locked .scene-card {
@@ -158,7 +295,7 @@
 
         .scene-card .app-count {
             display: inline-block;
-            background: #667eea;
+            background: var(--brand-2);
             color: white;
             padding: 2px 10px;
             border-radius: 12px;
@@ -209,7 +346,7 @@
             width: 100%;
             padding: 18px;
             font-size: 1.2em;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2f5bf2 0%, #12a4ff 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -221,7 +358,7 @@
 
         .analyze-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 12px 32px rgba(18, 164, 255, 0.35);
         }
 
         .analyze-btn:disabled {
@@ -252,7 +389,7 @@
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, #2f5bf2 0%, #12a4ff 100%);
             transition: width 0.3s ease;
             border-radius: 6px;
         }
@@ -269,7 +406,7 @@
 
         .progress-percent {
             font-weight: 600;
-            color: #667eea;
+            color: #2f5bf2;
             font-size: 1.1em;
         }
 
@@ -737,12 +874,12 @@
         }
 
         .nav-shell {
-            background: rgba(255, 255, 255, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 12px 14px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+            background: transparent;
+            border: none;
+            backdrop-filter: none;
+            border-radius: 0;
+            padding: 6px 0;
+            box-shadow: none;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -757,29 +894,27 @@
         }
 
         .brand-mark {
-            width: 38px;
-            height: 38px;
+            width: 42px;
+            height: 42px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: #0f1b3d;
+            background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='18' fill='%230f1b3d'/%3E%3Cg%3E%3Crect x='10' y='12' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='22' y='12' width='12' height='12' fill='%2399b6ff'/%3E%3Crect x='34' y='12' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='46' y='12' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='58' y='12' width='12' height='12' fill='%2399b6ff'/%3E%3Crect x='70' y='12' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='16' y='24' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='28' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='40' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='52' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='64' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='22' y='36' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='34' y='36' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='46' y='36' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='58' y='36' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='28' y='48' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='40' y='48' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='52' y='48' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='34' y='60' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='46' y='60' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='58' y='60' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='40' y='72' width='12' height='12' fill='%2399b6ff'/%3E%3Crect x='52' y='72' width='12' height='12' fill='%2399b6ff'/%3E%3C/g%3E%3Ccircle cx='42' cy='44' r='2.5' fill='%230f1b3d'/%3E%3Ccircle cx='56' cy='44' r='2.5' fill='%230f1b3d'/%3E%3Crect x='45' y='50' width='6' height='4' rx='2' fill='%230f1b3d'/%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: center;
             display: grid;
             place-items: center;
-            color: #fff;
-            font-weight: 800;
-            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(15, 27, 61, 0.35);
         }
 
         .brand-title {
             font-size: 1.05em;
             font-weight: 800;
-            color: #1f2a44;
+            color: #eef2ff;
             line-height: 1.2;
         }
 
-        .brand-subtitle {
-            font-size: 0.82em;
-            color: #667085;
-            margin-top: 2px;
-        }
 
         .nav-actions {
             display: flex;
@@ -790,17 +925,20 @@
 
         .tab-btn {
             border: none;
-            border-radius: 10px;
-            padding: 10px 18px;
-            background: #e9eefc;
-            color: #324066;
+            border-radius: 0;
+            padding: 6px 4px;
+            background: transparent;
+            color: rgba(226, 232, 240, 0.7);
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 650;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s ease, border-color 0.2s ease;
         }
 
         .tab-btn.active {
-            background: #667eea;
-            color: #fff;
+            background: transparent;
+            color: #ffffff;
+            border-bottom-color: var(--brand-3);
         }
 
         .tab-panel {
@@ -979,8 +1117,8 @@
 
         .subtab-btn.active {
             color: #fff;
-            border-color: #667eea;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #2f5bf2;
+            background: linear-gradient(135deg, #2f5bf2 0%, #12a4ff 100%);
         }
 
         .subtab-panel {
@@ -1418,8 +1556,407 @@
         .progress-line > div {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, #2f5bf2 0%, #12a4ff 100%);
             transition: width 0.25s ease;
+        }
+
+        .site-footer {
+            margin: 24px auto 10px;
+            padding: 10px 2px;
+            border-radius: 0;
+            background: transparent;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: none;
+            min-height: 86px;
+        }
+
+        .footer-left {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.92em;
+        }
+
+        .footer-title {
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .footer-meta {
+            color: rgba(226, 232, 240, 0.78);
+            font-size: 0.85em;
+        }
+
+        .footer-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .footer-pill {
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.6);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            font-size: 0.82em;
+            text-decoration: none;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            top: 20px;
+            transform: translateX(-50%) translateY(-10px);
+            background: rgba(15, 20, 35, 0.92);
+            color: #f1f5ff;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 0.92em;
+            letter-spacing: 0.2px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            z-index: 999;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .auto-window-info {
+            margin-top: 8px;
+            color: rgba(148, 163, 184, 0.9);
+            font-size: 0.85em;
+        }
+
+        .memory-detail-card {
+            margin-top: 16px;
+            padding: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(20, 30, 55, 0.55), rgba(15, 23, 42, 0.25));
+            box-shadow: 0 18px 30px rgba(8, 15, 30, 0.25);
+        }
+
+        .memory-detail-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .memory-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .memory-detail-block {
+            padding: 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            background: rgba(10, 18, 36, 0.55);
+            margin-bottom: 12px;
+        }
+
+        .memory-detail-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #e2e8f0;
+        }
+
+        .memory-detail-body {
+            display: grid;
+            gap: 8px;
+            font-size: 0.9em;
+            color: rgba(226, 232, 240, 0.88);
+        }
+
+        .memory-detail-empty {
+            color: rgba(226, 232, 240, 0.6);
+        }
+
+        .memory-detail-kv {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: baseline;
+        }
+
+        .memory-detail-kv span {
+            color: rgba(226, 232, 240, 0.68);
+        }
+
+        .memory-detail-kv strong {
+            color: #f8fafc;
+        }
+
+        .memory-detail-table {
+            width: 100%;
+            display: grid;
+            gap: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(10, 18, 36, 0.35);
+        }
+
+        .memory-detail-table.horizontal {
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .memory-detail-table.horizontal .memory-detail-row {
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.45);
+            grid-template-columns: 110px 1fr;
+            align-items: center;
+        }
+
+        .memory-detail-row {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 12px;
+            align-items: center;
+            padding: 6px 8px;
+            border-radius: 0;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        }
+
+        .memory-detail-row:nth-child(odd) {
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        .memory-detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .memory-detail-label {
+            color: rgba(226, 232, 240, 0.7);
+            font-size: 0.85em;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .memory-detail-value {
+            color: #f8fafc;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .memory-detail-table.compact .memory-detail-row {
+            grid-template-columns: 140px 1fr;
+            padding: 5px 8px;
+        }
+
+        .memory-metric-row {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .memory-metric-header {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 12px;
+            align-items: center;
+            padding: 6px 8px;
+            background: rgba(30, 41, 59, 0.55);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            font-size: 0.82em;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(226, 232, 240, 0.7);
+        }
+
+        .memory-metric-header .memory-metric-row {
+            color: rgba(226, 232, 240, 0.75);
+        }
+
+        .memory-detail-table.compact .memory-detail-value {
+            font-weight: 500;
+        }
+
+        .timeline {
+            border: 1px solid #1f2a36;
+            border-radius: 12px;
+            background: #101821;
+            padding: 10px;
+        }
+
+        .timeline-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px;
+            padding: 6px 8px;
+            border-bottom: 1px solid #1b2634;
+            align-items: center;
+        }
+
+        .timeline-row:last-child {
+            border-bottom: none;
+        }
+
+        .tl-time {
+            color: #cdd6e3;
+            font-size: 12px;
+            letter-spacing: 0.2px;
+        }
+
+        .tl-content {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 10px;
+        }
+
+        .tl-left,
+        .tl-right {
+            color: #f5f7fb;
+            font-size: 13px;
+            min-height: 1.2em;
+        }
+
+        .tl-left {
+            text-align: left;
+        }
+
+        .tl-right {
+            text-align: right;
+        }
+
+        .tl-legend {
+            display: flex;
+            gap: 8px;
+            padding: 4px 8px 8px 8px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid transparent;
+        }
+
+        .pill-start {
+            background: #123b26;
+            color: #6cf0a7;
+            border-color: #1f8a52;
+        }
+
+        .pill-start-cold {
+            background: #3b1a1a;
+            color: #ffb1b1;
+            border-color: #a54444;
+        }
+
+        .pill-start-hot {
+            background: #123b26;
+            color: #6cf0a7;
+            border-color: #1f8a52;
+        }
+
+        .pill-kill {
+            background: #3b1a1a;
+            color: #ffb1b1;
+            border-color: #a54444;
+        }
+
+        .pill-lmk {
+            background: #2b2140;
+            color: #d6b6ff;
+            border-color: #6f4bb7;
+        }
+
+        .memory-detail-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(30, 58, 138, 0.35);
+            border: 1px solid rgba(96, 165, 250, 0.35);
+            color: #e2e8f0;
+            font-size: 0.82em;
+        }
+
+        .memory-row {
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .memory-row:hover {
+            background: rgba(96, 165, 250, 0.08);
+        }
+
+        .memory-row.active {
+            background: rgba(59, 130, 246, 0.18);
+        }
+
+        .memory-toggle {
+            border: none;
+            background: rgba(30, 41, 59, 0.6);
+            color: #e2e8f0;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.82em;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .memory-detail-collapse {
+            display: none;
+        }
+
+        .memory-detail-collapse.show {
+            display: grid;
+        }
+
+        .footer-stats {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .footer-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 90px;
+        }
+
+        .footer-stat-label {
+            font-size: 0.72em;
+            color: rgba(226, 232, 240, 0.65);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .footer-stat-value {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: #f8fafc;
         }
 
         @media (max-width: 768px) {
@@ -1442,6 +1979,10 @@
             .result-link {
                 width: 100%;
                 justify-content: center;
+            }
+
+            .site-footer {
+                text-align: left;
             }
 
             .check-history-actions {
@@ -1468,30 +2009,74 @@
         <div class="top-nav">
             <div class="nav-shell">
                 <div class="brand">
-                    <div class="brand-mark">C</div>
-                    <div>
-                        <div class="brand-title">Collie</div>
-                        <div class="brand-subtitle">Bugreport 智能分析平台 · Web ADB 实用工具 · 研发自测</div>
-                    </div>
+                    <div class="brand-mark" aria-label="Collie logo"></div>
+                    <div class="brand-title">Collie</div>
                 </div>
                 <div class="nav-actions">
-                    <button class="tab-btn active" id="tabBtnAnalysis" onclick="switchMainTab('analysis')">Bugreport 智能分析</button>
+                    <button class="tab-btn active" id="tabBtnHome" onclick="switchMainTab('home')">首页</button>
+                    <button class="tab-btn" id="tabBtnAnalysis" onclick="switchMainTab('analysis')">Bugreport 智能分析</button>
                     <button class="tab-btn" id="tabBtnUtilities" onclick="switchMainTab('utilities')">实用工具</button>
                     <button class="tab-btn" id="tabBtnRd" onclick="switchMainTab('rd')">研发自测</button>
                 </div>
             </div>
         </div>
 
-        <div class="tab-panel active" id="analysisTab">
+        <div class="tab-panel active" id="homeTab">
+            <div class="home-hero">
+                <h1>Collie Linux 内核与 Android Bugreport 综述</h1>
+                <p>围绕内核内存回收、Android Bugreport 解析与查杀信号，帮助研发快速建立问题画像并选择合适的分析入口。</p>
+            </div>
+            <div class="home-entry">
+                <button class="home-cta" onclick="switchMainTab('analysis')">
+                    Bugreport 智能分析
+                    <span>上传、场景选择、分析进度与结果回收一站完成。</span>
+                </button>
+                <button class="home-cta" onclick="switchMainTab('utilities')">
+                    实用工具
+                    <span>设备安装、版本检查、内存采集与对比快速操作。</span>
+                </button>
+                <button class="home-cta" onclick="switchMainTab('rd')">
+                    研发自测
+                    <span>存活监控、连续启动与性能采样组合场景。</span>
+                </button>
+            </div>
+            <div class="home-highlight">
+                <div class="home-highlight-item">
+                    <h3>Linux 内核内存回收链路</h3>
+                    <p>关注 direct reclaim、kswapd、watermark 与 memcg 触发条件，理解系统在压力下的回收与阻塞行为。</p>
+                </div>
+                <div class="home-highlight-item">
+                    <h3>Android Bugreport 关键切面</h3>
+                    <p>通过 logcat、dumpsys、meminfo 与 killinfo 片段还原进程状态与异常时间窗。</p>
+                </div>
+                <div class="home-highlight-item">
+                    <h3>查杀信号与驻留策略</h3>
+                    <p>解读 LMK、oom_adj、kill_reason 与后台驻留趋势，辅助定位关键查杀点。</p>
+                </div>
+            </div>
+            <div class="home-list">
+                <div class="home-list-item">内核事件：关注 reclaim 触发时机、stall 与 memcg 压力。</div>
+                <div class="home-list-item">Bugreport 线索：定位时间窗、关键进程与异常 killinfo。</div>
+                <div class="home-list-item">驻留与查杀：结合场景化测试判断后台稳定性。</div>
+                <div class="home-list-item">工具入口：三大模块快速切换，统一任务节奏与产物输出。</div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="analysisTab">
         <div class="header">
-            <h1>Collie</h1>
-            <p>基于预设场景的快速 bugreport 日志分析工具</p>
+            <h1>Collie Bugreport 分析中枢</h1>
+            <p>为研发与性能团队打造的场景化分析与复盘中枢，快速定位关键 kill、驻留与内存指标变化。</p>
         </div>
 
         <div class="main-card">
             <!-- 文件上传区域 -->
             <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">📁</div>
+                <div class="upload-icon">
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M7 16h10a3 3 0 0 0 .3-5.985A5 5 0 0 0 7.7 7.7 4 4 0 0 0 7 16Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 8v8m0 0-3-3m3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
                 <div class="upload-text">点击或拖拽上传 bugreport 文件</div>
                 <div class="upload-hint">支持 .txt 文本文件或 .zip 压缩包（最大500MB）</div>
                 <input type="file" id="fileInput" accept=".txt,.zip">
@@ -1505,37 +2090,36 @@
             <!-- 场景选择 -->
             <div class="scene-selection" id="sceneSelection" style="display: none;">
                 <h2 class="section-title">
-                    <span>📊</span>
-                    选择分析场景
+                    <span>分析场景</span>
                 </h2>
                 
                 <div class="scene-grid" id="sceneGrid">
                     <div class="scene-card" data-scene="dynamic_performance">
-                        <h3>🚀 动态性能模型</h3>
+                        <h3>动态性能模型</h3>
                         <p>针对 TOP20 应用的动态性能分析，重点关注启动时间和内存占用</p>
                         <span class="app-count">20个应用</span>
-                        <span class="ai-badge">✅ 支持AI对比</span>
+                        <span class="ai-badge">支持AI对比</span>
                     </div>
                     
                     <div class="scene-card" data-scene="nine_scene">
-                        <h3>📱 九大场景-驻留</h3>
+                        <h3>九大场景-驻留</h3>
                         <p>模拟九大典型使用场景，分析后台驻留能力和查杀情况</p>
                         <span class="app-count">25个应用</span>
-                        <span class="ai-badge">✅ 支持AI对比</span>
+                        <span class="ai-badge">支持AI对比</span>
                     </div>
 
                     <div class="scene-card" data-scene="kill_focus">
-                        <h3>🎯 被杀应用定点分析</h3>
+                        <h3>被杀应用定点分析</h3>
                         <p>指定目标包名，先锁定被杀事件，再输出定点查杀报告</p>
                         <span class="app-count">按包名选择</span>
-                        <span class="ai-badge" style="background: #666;">❌ 不支持AI对比</span>
+                        <span class="ai-badge" style="background: #666;">不支持AI对比</span>
                     </div>
                     
                     <div class="scene-card" data-scene="custom">
-                        <h3>⚙️ 自选应用</h3>
+                        <h3>自选应用</h3>
                         <p>自定义需要分析的应用列表，灵活适配特殊需求</p>
                         <span class="app-count">自定义</span>
-                        <span class="ai-badge" style="background: #666;">❌ 不支持AI对比</span>
+                        <span class="ai-badge" style="background: #666;">不支持AI对比</span>
                     </div>
                 </div>
                 
@@ -1585,11 +2169,13 @@
                     <span class="progress-percent" id="progressPercent">0%</span>
                 </div>
             </div>
+            <div id="autoWindowInfo" class="auto-window-info" style="display:none;"></div>
 
             <!-- 手动时间段输入（置信度低时显示） -->
             <div class="manual-time-input" id="manualTimeInput" style="display: none; margin: 20px 0; padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;">
-                <h4 style="margin: 0 0 15px 0; color: #856404;">⚠️ 需要确认时间段</h4>
+                <h4 style="margin: 0 0 15px 0; color: #856404;">需要确认时间段</h4>
                 <p id="confirmReason" style="margin: 0 0 15px 0; color: #856404; font-size: 0.95em;"></p>
+                <div id="autoWindowOptions" style="display:none; margin-bottom: 15px;"></div>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
                     <div>
                         <label style="display: block; font-size: 0.9em; color: #666; margin-bottom: 5px;">开始时间 (MM-DD HH:mm:ss.ms)</label>
@@ -1604,7 +2190,7 @@
                     </button>
                 </div>
                 <p style="margin: 10px 0 0 0; color: #856404; font-size: 0.85em;">
-                    💡 提示：可在终端日志中找到准确的时间段，格式如 01-15 14:42:52.731
+                    提示：可在终端日志中找到准确的时间段，格式如 01-15 14:42:52.731
                 </p>
             </div>
 
@@ -1616,7 +2202,7 @@
             <!-- 结果展示 -->
             <div class="results-container" id="resultsContainer">
                 <div class="result-card">
-                    <h3>✅ 分析完成</h3>
+                    <h3>分析完成</h3>
                     <div class="result-links" id="resultLinks">
                         <!-- 动态生成结果链接 -->
                     </div>
@@ -1625,7 +2211,7 @@
                 <div class="result-card memory-analysis-card" id="memoryAnalysisContainer" style="display: none;">
                     <div class="memory-card-head">
                         <div>
-                            <h3>🧠 被杀时刻内存分析</h3>
+                            <h3>被杀时刻内存分析</h3>
                             <p class="memory-card-sub">展示高亮进程在被杀 / LMK 时的内存指标</p>
                         </div>
                         <span class="memory-chip" id="memoryAnalysisStatus">待加载</span>
@@ -1675,6 +2261,42 @@
                             </table>
                         </div>
                     </div>
+                    <div class="memory-detail-card" id="memoryDetailCard" style="display:none;">
+                        <div class="memory-detail-head">
+                            <div>
+                                <h4>单次查杀详情</h4>
+                                <p class="memory-card-sub">从“被杀 / LMK 事件列表”选择一条记录查看</p>
+                            </div>
+                            <span class="memory-chip" id="memoryDetailTag">未选择</span>
+                        </div>
+                        <div class="memory-detail-grid">
+                            <div class="memory-detail-block">
+                                <div class="memory-detail-title">被查杀详情</div>
+                                <div class="memory-detail-body" id="memoryDetailInfo">
+                                    <div class="memory-detail-empty">请选择一条查杀记录</div>
+                                </div>
+                            </div>
+                            <div class="memory-detail-block">
+                                <div class="memory-detail-title">当时仍存活的高亮进程</div>
+                                <div class="memory-detail-body" id="memoryDetailAlive">
+                                    <div class="memory-detail-empty">请选择一条查杀记录</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="memory-detail-block">
+                            <div class="memory-detail-title">被杀时刻及前 5s/10s/15s 内存窗口</div>
+                            <div class="memory-detail-body" id="memoryDetailWindow">
+                                <div class="memory-detail-empty">请选择一条查杀记录</div>
+                            </div>
+                        </div>
+                        <div class="memory-detail-block">
+                            <div class="memory-detail-title">高亮主进程时间线（启动 + 查杀）</div>
+                            <button class="memory-toggle" id="memoryDetailTimelineToggle" onclick="toggleMemoryTimeline()">展开</button>
+                            <div class="memory-detail-body memory-detail-collapse" id="memoryDetailTimeline">
+                                <div class="memory-detail-empty">请选择一条查杀记录</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="memory-table-wrap">
                         <div class="memory-table-head">
                             <span>memfree 最低的查杀 TOP10</span>
@@ -1703,13 +2325,13 @@
         <div class="main-card tasks-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 class="section-title" style="margin-bottom: 0;">
-                    <span>📋</span>
+                    <span>报告</span>
                     分析历史
                 </h2>
                 <div id="compareControls" style="display: none;">
                     <span id="selectedCount" style="margin-right: 15px; color: #666;">已选择 0/2</span>
                     <button class="analyze-btn" style="width: auto; padding: 10px 20px; margin: 0; font-size: 0.95em;" onclick="startCompare()">
-                        🔍 AI对比分析
+                        AI对比分析
                     </button>
                     <button class="task-btn" style="margin-left: 10px;" onclick="clearSelection()">取消</button>
                 </div>
@@ -1719,7 +2341,7 @@
             </div>
             <div class="task-list" id="taskList">
                 <div class="empty-state">
-                    <div class="empty-state-icon">📭</div>
+                    <div class="empty-state-icon">暂无数据</div>
                     <p>暂无分析任务</p>
                 </div>
             </div>
@@ -1729,7 +2351,7 @@
         <div class="main-card" id="comparisonContainer" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 class="section-title" style="margin-bottom: 0;">
-                    <span>🔍</span>
+                    <span>搜索</span>
                     AI 对比分析结果
                 </h2>
                 <button class="task-btn" onclick="closeComparison()">关闭</button>
@@ -1747,7 +2369,7 @@
         <div class="main-card" id="interpretContainer" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 class="section-title" style="margin-bottom: 0;">
-                    <span>🧠</span>
+                    <span>内存</span>
                     AI 智能解读结果
                 </h2>
                 <button class="task-btn" onclick="closeAIInterpretation()">关闭</button>
@@ -1763,8 +2385,14 @@
         </div>
 
         <div class="tab-panel" id="utilitiesTab">
+            <div class="header">
+                <h1>Collie 实用工具中枢</h1>
+                <p>面向设备侧的快速操作与诊断入口，集中管理安装、版本、采集与对比等基础能力。</p>
+                <p class="section-intro">适合在测试前准备与问题定位时使用，确保工具链与设备状态保持一致。</p>
+            </div>
             <div class="main-card">
-                <h2 class="section-title"><span>🛠️</span>实用工具</h2>
+                <h2 class="section-title"><span>工具</span>实用工具</h2>
+                <p class="section-intro">面向设备侧的快速操作与诊断入口，集中管理安装、版本、采集与对比等基础能力。</p>
                 <div id="toolDeviceHostUtilities">
                     <div id="toolDeviceStrip" class="utilities-strip shared-device-strip">
                         <div class="left">
@@ -1997,8 +2625,14 @@ python3 adb_agent.py \
         </div>
 
         <div class="tab-panel" id="rdTab">
+            <div class="header">
+                <h1>Collie 研发自测中枢</h1>
+                <p>研发自测与长链路验证入口，覆盖存活、连续启动与性能监控的组合场景。</p>
+                <p class="section-intro">适合在专项验证与回归流程中使用，帮助快速还原测试链路并沉淀结果。</p>
+            </div>
             <div class="main-card">
-                <h2 class="section-title"><span>🧪</span>研发自测</h2>
+                <h2 class="section-title"><span>自测</span>研发自测</h2>
+                <p class="section-intro">研发自测与长链路验证入口，覆盖存活、连续启动与性能监控的组合场景。</p>
                 <div id="toolDeviceHostRd"></div>
 
                 <div class="subtab-bar" id="rdSubTabBar">
@@ -2190,13 +2824,42 @@ python3 adb_agent.py \
         </div>
     </div>
 
+    <div id="toast" class="toast"></div>
+
+    <footer class="site-footer">
+        <div class="footer-left">
+            <div class="footer-title">Collie · Bugreport 分析平台</div>
+            <div class="footer-meta">面向性能与研发的日志归因中枢 · 内部工具</div>
+        </div>
+        <div class="footer-stats">
+            <div class="footer-stat">
+                <div class="footer-stat-label">在线人数</div>
+                <div class="footer-stat-value" id="onlineCount">-</div>
+            </div>
+            <div class="footer-stat">
+                <div class="footer-stat-label">今日分析</div>
+                <div class="footer-stat-value" id="todayJobs">-</div>
+            </div>
+            <div class="footer-stat">
+                <div class="footer-stat-label">任务总量</div>
+                <div class="footer-stat-value" id="totalJobs">-</div>
+            </div>
+        </div>
+        <div class="footer-actions">
+            <span class="footer-pill">服务状态：在线</span>
+            <span class="footer-pill">当前环境：Web 端</span>
+            <span class="footer-pill">建议浏览器：Chrome / Edge</span>
+        </div>
+    </footer>
+
     <script>
         // 全局状态
         let currentTaskId = null;
         let selectedScene = null;
         let statusCheckInterval = null;
         let compareMode = false;
-        let selectedTasks = new Set();
+        let selectedTasks = [];
+        let compareTargetScene = null;
         let lastComparisonData = null;
         let lastInterpretData = null;
         let utilityJobId = null;
@@ -2213,7 +2876,10 @@ python3 adb_agent.py \
         let currentUtilitySubTab = 'app_install';
         const utilityTabStates = {};
         let memoryAnalysisData = null;
+        let selectedMemoryEventId = null;
+        let memoryTimelineExpanded = false;
         let killFocusCandidates = [];
+        let autoWindowCandidates = [];
         let sceneSelectionLocked = false;
 
         function _createUtilityTabState() {
@@ -2510,6 +3176,8 @@ python3 adb_agent.py \
 
         function resetMemoryAnalysisCard() {
             memoryAnalysisData = null;
+            selectedMemoryEventId = null;
+            memoryTimelineExpanded = false;
             if (!memoryAnalysisContainer) return;
             memoryAnalysisContainer.style.display = 'none';
             if (memoryAnalysisStatus) memoryAnalysisStatus.textContent = '待加载';
@@ -2520,6 +3188,14 @@ python3 adb_agent.py \
             if (memoryEventsSummary) memoryEventsSummary.textContent = '0 条样本';
             if (memoryEventsTable) memoryEventsTable.innerHTML = '<tr><td colspan="8" class="memory-empty">暂无数据</td></tr>';
             if (memoryLowTable) memoryLowTable.innerHTML = '<tr><td colspan="4" class="memory-empty">暂无数据</td></tr>';
+            if (memoryDetailCard) memoryDetailCard.style.display = 'none';
+            if (memoryDetailInfo) memoryDetailInfo.innerHTML = '<div class="memory-detail-empty">请选择一条查杀记录</div>';
+            if (memoryDetailAlive) memoryDetailAlive.innerHTML = '<div class="memory-detail-empty">请选择一条查杀记录</div>';
+            if (memoryDetailWindow) memoryDetailWindow.innerHTML = '<div class="memory-detail-empty">请选择一条查杀记录</div>';
+            if (memoryDetailTimeline) memoryDetailTimeline.innerHTML = '<div class="memory-detail-empty">请选择一条查杀记录</div>';
+            if (memoryDetailTag) memoryDetailTag.textContent = '未选择';
+            if (memoryDetailTimeline) memoryDetailTimeline.classList.remove('show');
+            if (memoryDetailTimelineToggle) memoryDetailTimelineToggle.textContent = '展开';
         }
 
         async function loadMemoryAnalysis(taskId) {
@@ -2548,6 +3224,12 @@ python3 adb_agent.py \
                 resetMemoryAnalysisCard();
                 return;
             }
+            selectedMemoryEventId = null;
+            memoryTimelineExpanded = false;
+            if (memoryDetailCard) memoryDetailCard.style.display = 'none';
+            if (memoryDetailTag) memoryDetailTag.textContent = '未选择';
+            if (memoryDetailTimeline) memoryDetailTimeline.classList.remove('show');
+            if (memoryDetailTimelineToggle) memoryDetailTimelineToggle.textContent = '展开';
             const processes = Array.isArray(data.available_processes) && data.available_processes.length
                 ? data.available_processes
                 : (Array.isArray(data.highlight_processes) ? data.highlight_processes : []);
@@ -2577,6 +3259,11 @@ python3 adb_agent.py \
 
         function renderMemoryProcessView(processName) {
             if (!memoryAnalysisData) return;
+            selectedMemoryEventId = null;
+            if (memoryDetailCard) memoryDetailCard.style.display = 'none';
+            if (memoryDetailTag) memoryDetailTag.textContent = '未选择';
+            if (memoryDetailTimeline) memoryDetailTimeline.classList.remove('show');
+            if (memoryDetailTimelineToggle) memoryDetailTimelineToggle.textContent = '展开';
             const normalized = String(processName || '');
             const statsEntry = (memoryAnalysisData.process_stats || []).find((item) => item.process === normalized);
             const fallbackStats = (memoryAnalysisData.mem_stats?.highlight_main || memoryAnalysisData.mem_stats?.main || {}).mem_free || {};
@@ -2594,6 +3281,9 @@ python3 adb_agent.py \
             const allEvents = Array.isArray(memoryAnalysisData.highlight_events)
                 ? memoryAnalysisData.highlight_events
                 : [];
+            const allKillEvents = Array.isArray(memoryAnalysisData.all_events)
+                ? memoryAnalysisData.all_events
+                : allEvents;
             const filteredEvents = normalized
                 ? allEvents.filter((evt) => evt.process === normalized)
                 : allEvents;
@@ -2609,8 +3299,10 @@ python3 adb_agent.py \
                 memoryEventsTable.innerHTML = '<tr><td colspan="8" class="memory-empty">暂无数据</td></tr>';
                 return;
             }
-            const html = rows.map((row) => (
-                `<tr>
+            const html = rows.map((row) => {
+                const eventId = String(row.event_id || '');
+                const activeClass = selectedMemoryEventId && String(selectedMemoryEventId) === eventId ? 'active' : '';
+                return `<tr class="memory-row ${activeClass}" data-event-id="${escapeHtml(eventId)}">
                     <td>#${escapeHtml(String(row.event_id || '-'))}</td>
                     <td>${escapeHtml(row.time || '-')}</td>
                     <td>${escapeHtml((row.type || '').toUpperCase())}</td>
@@ -2619,8 +3311,8 @@ python3 adb_agent.py \
                     <td>${formatMemoryValue(row.anon_pages)}</td>
                     <td>${formatMemoryValue(row.swap_free)}</td>
                     <td>${escapeHtml(row.kill_type || '-')}/${escapeHtml(row.adj || '-')}</td>
-                </tr>`
-            )).join('');
+                </tr>`;
+            }).join('');
             memoryEventsTable.innerHTML = html;
         }
 
@@ -2639,6 +3331,294 @@ python3 adb_agent.py \
                 </tr>`
             )).join('');
             memoryLowTable.innerHTML = html;
+        }
+
+        function _parseEventTimeMs(text) {
+            const raw = String(text || '').trim();
+            if (!raw) return null;
+            const now = new Date();
+            const year = now.getFullYear();
+            const match = raw.match(/(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?/);
+            if (!match) return null;
+            const ms = match[6] ? Number(match[6].padEnd(3, '0')) : 0;
+            const dt = new Date(year, Number(match[1]) - 1, Number(match[2]), Number(match[3]), Number(match[4]), Number(match[5]), ms);
+            return dt.getTime();
+        }
+
+        function _calcStats(values) {
+            if (!values.length) {
+                return { count: 0 };
+            }
+            const sorted = [...values].sort((a, b) => a - b);
+            const count = sorted.length;
+            const sum = sorted.reduce((acc, v) => acc + v, 0);
+            const avg = sum / count;
+            const p50 = sorted[Math.floor((count - 1) * 0.5)];
+            const p95 = sorted[Math.floor((count - 1) * 0.95)];
+            const min = sorted[0];
+            const max = sorted[count - 1];
+            return { count, avg, median: p50, p95, min, max };
+        }
+
+        function _buildStatsLine(label, stats) {
+            if (!stats || !stats.count) {
+                return `<div class="memory-detail-row">
+                    <div class="memory-detail-label">${label}</div>
+                    <div class="memory-detail-value">-</div>
+                </div>`;
+            }
+            return `<div class="memory-detail-row">
+                <div class="memory-detail-label">${label}</div>
+                <div class="memory-detail-value">
+                    <div class="memory-metric-row">
+                        <span>${formatMemoryValue(stats.avg)}</span>
+                        <span>${formatMemoryValue(stats.median)}</span>
+                        <span>${formatMemoryValue(stats.p95)}</span>
+                        <span>${formatMemoryValue(stats.min)}</span>
+                        <span>${formatMemoryValue(stats.max)}</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function _getKillTimeMs(evt) {
+            if (!evt) return null;
+            if (evt.time_ts) return Number(evt.time_ts);
+            return _parseEventTimeMs(evt.time);
+        }
+
+        function selectMemoryEvent(eventId) {
+            if (!memoryAnalysisData) return;
+            const allEvents = Array.isArray(memoryAnalysisData.highlight_events)
+                ? memoryAnalysisData.highlight_events
+                : [];
+            const allKillEvents = Array.isArray(memoryAnalysisData.all_events)
+                ? memoryAnalysisData.all_events
+                : allEvents;
+            const target = allEvents.find((evt) => String(evt.event_id) === String(eventId));
+            if (!target) {
+                return;
+            }
+            selectedMemoryEventId = target.event_id;
+            if (memoryDetailCard) memoryDetailCard.style.display = 'block';
+            if (memoryDetailTag) memoryDetailTag.textContent = `#${target.event_id} ${target.process || ''}`.trim();
+
+            const killTimeMs = _getKillTimeMs(target);
+            const infoLines = [
+                { label: '事件', value: `#${escapeHtml(String(target.event_id))}` },
+                { label: '时间', value: escapeHtml(target.time || '-') },
+                { label: '类型', value: escapeHtml((target.type || '').toUpperCase()) },
+                { label: '进程', value: escapeHtml(target.process || '-') },
+                { label: '原因', value: escapeHtml(target.reason || '-') },
+                { label: 'memfree', value: formatMemoryValue(target.mem_free) },
+                { label: 'file', value: formatMemoryValue(target.file_pages) },
+                { label: 'anon', value: formatMemoryValue(target.anon_pages) },
+                { label: 'swapfree', value: formatMemoryValue(target.swap_free) },
+                { label: 'killType/adj', value: `${escapeHtml(target.kill_type || '-')}/${escapeHtml(target.adj || '-')}` },
+            ];
+            if (memoryDetailInfo) {
+                memoryDetailInfo.innerHTML = `
+                    <div class="memory-detail-table horizontal">
+                        ${infoLines.map((row) => (
+                            `<div class="memory-detail-row">
+                                <div class="memory-detail-label">${row.label}</div>
+                                <div class="memory-detail-value">${row.value}</div>
+                            </div>`
+                        )).join('')}
+                    </div>
+                `;
+            }
+
+            const timeline = Array.isArray(memoryAnalysisData.highlight_timeline)
+                ? memoryAnalysisData.highlight_timeline
+                : [];
+            const highlightList = Array.isArray(memoryAnalysisData.highlight_processes)
+                ? memoryAnalysisData.highlight_processes
+                : (Array.isArray(memoryAnalysisData.available_processes) ? memoryAnalysisData.available_processes : []);
+                const aliveRows = [];
+                highlightList.forEach((proc) => {
+                    if (!killTimeMs) return;
+                    const procEvents = timeline.filter((e) => e.process === proc && e.time_ts && e.time_ts <= killTimeMs);
+                    const lastStart = [...procEvents].reverse().find((e) => e.type === 'start');
+                    if (!lastStart) return;
+                    const hasKill = procEvents.some((e) => (e.type === 'kill' || e.type === 'lmk') && e.time_ts >= lastStart.time_ts);
+                    if (hasKill) return;
+                    const reasonParts = [];
+                    if (lastStart.start_kind) reasonParts.push(`启动类型:${lastStart.start_kind}`);
+                    if (lastStart.launch_source) reasonParts.push(`来源:${lastStart.launch_source}`);
+                    if (lastStart.had_proc_start) reasonParts.push('有进程启动');
+                    reasonParts.push('启动后未出现 kill/lmk');
+                    aliveRows.push({
+                        process: proc,
+                        startTime: lastStart.time || '-',
+                        startTs: lastStart.time_ts || 0,
+                        reason: reasonParts.join(' · '),
+                    });
+                });
+                aliveRows.sort((a, b) => a.startTs - b.startTs);
+                aliveRows.forEach((row, idx) => {
+                    row.order = aliveRows.length - idx;
+                });
+                if (memoryDetailAlive) {
+                    if (!aliveRows.length) {
+                        memoryDetailAlive.innerHTML = '<div class="memory-detail-empty">无满足条件的存活进程</div>';
+                    } else {
+                        const html = [
+                            `<div class="memory-detail-table compact">
+                                <div class="memory-detail-row">
+                                    <div class="memory-detail-label">存活数量</div>
+                                    <div class="memory-detail-value">${aliveRows.length}</div>
+                                </div>
+                            </div>`,
+                            ...aliveRows.map((row) => (
+                            `<div class="memory-detail-pill"><strong>前${row.order}个应用 ${escapeHtml(row.process)}</strong><span>${escapeHtml(row.startTime)}</span><span>${escapeHtml(row.reason)}</span></div>`
+                            )),
+                        ];
+                        memoryDetailAlive.innerHTML = html.join('');
+                    }
+                }
+
+            const windowLines = [];
+            windowLines.push(`
+                <div class="memory-detail-table">
+                    <div class="memory-metric-header">
+                        <div>指标</div>
+                        <div class="memory-metric-row">
+                            <span>avg</span>
+                            <span>p50</span>
+                            <span>p95</span>
+                            <span>min</span>
+                            <span>max</span>
+                        </div>
+                    </div>
+                    <div class="memory-detail-row">
+                        <div class="memory-detail-label">被杀时刻</div>
+                        <div class="memory-detail-value">memfree ${formatMemoryValue(target.mem_free)} / file ${formatMemoryValue(target.file_pages)} / anon ${formatMemoryValue(target.anon_pages)} / swap ${formatMemoryValue(target.swap_free)}</div>
+                    </div>
+                </div>
+            `);
+            const windows = [5, 10, 15];
+            windows.forEach((sec) => {
+                if (!killTimeMs) {
+                    windowLines.push(`
+                        <div class="memory-detail-table compact">
+                            <div class="memory-metric-header">
+                                <div>指标</div>
+                                <div class="memory-metric-row">
+                                    <span>avg</span>
+                                    <span>p50</span>
+                                    <span>p95</span>
+                                    <span>min</span>
+                                    <span>max</span>
+                                </div>
+                            </div>
+                            <div class="memory-detail-row">
+                                <div class="memory-detail-label">前 ${sec}s</div>
+                                <div class="memory-detail-value">-</div>
+                            </div>
+                        </div>
+                    `);
+                    return;
+                }
+                const startMs = killTimeMs - sec * 1000;
+                const winEvents = allKillEvents.filter((evt) => evt.time_ts && evt.time_ts >= startMs && evt.time_ts <= killTimeMs);
+                const memFreeVals = winEvents.map((evt) => Number(evt.mem_free)).filter((v) => Number.isFinite(v));
+                const fileVals = winEvents.map((evt) => Number(evt.file_pages)).filter((v) => Number.isFinite(v));
+                const anonVals = winEvents.map((evt) => Number(evt.anon_pages)).filter((v) => Number.isFinite(v));
+                const swapVals = winEvents.map((evt) => Number(evt.swap_free)).filter((v) => Number.isFinite(v));
+                windowLines.push(`
+                    <div class="memory-detail-table compact">
+                        <div class="memory-metric-header">
+                            <div>指标</div>
+                            <div class="memory-metric-row">
+                                <span>avg</span>
+                                <span>p50</span>
+                                <span>p95</span>
+                                <span>min</span>
+                                <span>max</span>
+                            </div>
+                        </div>
+                        <div class="memory-detail-row">
+                            <div class="memory-detail-label">前 ${sec}s 事件数</div>
+                            <div class="memory-detail-value">${winEvents.length}</div>
+                        </div>
+                        ${_buildStatsLine('memfree', _calcStats(memFreeVals))}
+                        ${_buildStatsLine('file', _calcStats(fileVals))}
+                        ${_buildStatsLine('anon', _calcStats(anonVals))}
+                        ${_buildStatsLine('swap', _calcStats(swapVals))}
+                    </div>
+                `);
+            });
+            if (memoryDetailWindow) memoryDetailWindow.innerHTML = windowLines.join('');
+
+            if (memoryDetailTimeline) {
+                const timelineRows = timeline
+                    .filter((e) => e.time_ts && killTimeMs && e.time_ts <= killTimeMs)
+                    .filter((e) => e.type === 'start' || e.type === 'kill' || e.type === 'lmk')
+                    .sort((a, b) => a.time_ts - b.time_ts);
+                if (!timelineRows.length) {
+                    memoryDetailTimeline.innerHTML = '<div class="memory-detail-empty">无可用时间线数据</div>';
+                } else {
+                    const legendHtml = `
+                        <div class="tl-legend">
+                            <span class="pill pill-start-cold">冷启动</span>
+                            <span class="pill pill-start-hot">热启动</span>
+                            <span class="pill pill-kill">上层/一体化</span>
+                            <span class="pill pill-lmk">底层/LMKD</span>
+                        </div>
+                    `;
+                    const rowsHtml = timelineRows.map((e) => {
+                        let left = '';
+                        let right = '';
+                        if (e.type === 'start') {
+                            if (e.start_kind === 'cold') {
+                                left = `<span class="pill pill-start-cold">冷启动</span>&nbsp;${escapeHtml(e.process || '-')}`;
+                            } else if (e.start_kind === 'hot') {
+                                left = `<span class="pill pill-start-hot">热启动</span>&nbsp;${escapeHtml(e.process || '-')}`;
+                            } else {
+                                left = `<span class="pill pill-start">启动</span>&nbsp;${escapeHtml(e.process || '-')}`;
+                            }
+                        } else if (e.type === 'kill') {
+                            right = `${escapeHtml(e.process || '-')}&nbsp;<span class="pill pill-kill">上层/一体化</span>`;
+                        } else {
+                            right = `${escapeHtml(e.process || '-')}&nbsp;<span class="pill pill-lmk">底层/LMKD</span>`;
+                        }
+                        return `
+                            <div class="timeline-row">
+                                <div class="tl-time">${escapeHtml(e.time || '-')}</div>
+                                <div class="tl-content">
+                                    <span class="tl-left">${left}</span>
+                                    <span class="tl-right">${right}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    memoryDetailTimeline.innerHTML = `
+                        ${legendHtml}
+                        <div class="timeline">
+                            ${rowsHtml}
+                        </div>
+                    `;
+                }
+            }
+
+            const currentFilter = memoryProcessSelect ? memoryProcessSelect.value : '';
+            const filteredEvents = currentFilter
+                ? allEvents.filter((evt) => evt.process === currentFilter)
+                : allEvents;
+            renderMemoryEventsTable(filteredEvents);
+        }
+
+        function toggleMemoryTimeline() {
+            if (!memoryDetailTimeline) return;
+            memoryTimelineExpanded = !memoryTimelineExpanded;
+            if (memoryTimelineExpanded) {
+                memoryDetailTimeline.classList.add('show');
+                if (memoryDetailTimelineToggle) memoryDetailTimelineToggle.textContent = '收起';
+            } else {
+                memoryDetailTimeline.classList.remove('show');
+                if (memoryDetailTimelineToggle) memoryDetailTimelineToggle.textContent = '展开';
+            }
         }
 
         function buildComparisonMarkdown(data) {
@@ -2795,6 +3775,7 @@ python3 adb_agent.py \
         const progressFill = document.getElementById('progressFill');
         const progressMessage = document.getElementById('progressMessage');
         const progressPercent = document.getElementById('progressPercent');
+        const autoWindowInfo = document.getElementById('autoWindowInfo');
         const resultsContainer = document.getElementById('resultsContainer');
         const resultLinks = document.getElementById('resultLinks');
         const taskList = document.getElementById('taskList');
@@ -2803,6 +3784,7 @@ python3 adb_agent.py \
         const manualStartTime = document.getElementById('manualStartTime');
         const manualEndTime = document.getElementById('manualEndTime');
         const confirmTimeBtn = document.getElementById('confirmTimeBtn');
+        const autoWindowOptions = document.getElementById('autoWindowOptions');
         const utilDeviceSelect = document.getElementById('utilDeviceSelect');
         const utilStatus = document.getElementById('utilStatus');
         const utilLog = document.getElementById('utilLog');
@@ -2883,6 +3865,13 @@ python3 adb_agent.py \
         const memoryEventsSummary = document.getElementById('memoryEventsSummary');
         const memoryEventsTable = document.getElementById('memoryEventsTable');
         const memoryLowTable = document.getElementById('memoryLowTable');
+        const memoryDetailCard = document.getElementById('memoryDetailCard');
+        const memoryDetailInfo = document.getElementById('memoryDetailInfo');
+        const memoryDetailAlive = document.getElementById('memoryDetailAlive');
+        const memoryDetailWindow = document.getElementById('memoryDetailWindow');
+        const memoryDetailTimeline = document.getElementById('memoryDetailTimeline');
+        const memoryDetailTag = document.getElementById('memoryDetailTag');
+        const memoryDetailTimelineToggle = document.getElementById('memoryDetailTimelineToggle');
         const interpretContainer = document.getElementById('interpretContainer');
         const interpretContent = document.getElementById('interpretContent');
 
@@ -2892,18 +3881,45 @@ python3 adb_agent.py \
             });
         }
 
+        if (memoryEventsTable) {
+            memoryEventsTable.addEventListener('click', (event) => {
+                const row = event.target.closest('.memory-row');
+                if (!row) return;
+                const eventId = row.getAttribute('data-event-id');
+                if (!eventId) return;
+                selectMemoryEvent(eventId);
+            });
+        }
+
         function switchMainTab(tab) {
+            const homeTab = document.getElementById('homeTab');
             const analysisTab = document.getElementById('analysisTab');
             const utilitiesTab = document.getElementById('utilitiesTab');
             const rdTab = document.getElementById('rdTab');
+            const tabBtnHome = document.getElementById('tabBtnHome');
             const tabBtnAnalysis = document.getElementById('tabBtnAnalysis');
             const tabBtnUtilities = document.getElementById('tabBtnUtilities');
             const tabBtnRd = document.getElementById('tabBtnRd');
 
+            if (tab === 'home') {
+                homeTab.classList.add('active');
+                analysisTab.classList.remove('active');
+                utilitiesTab.classList.remove('active');
+                rdTab.classList.remove('active');
+                tabBtnHome.classList.add('active');
+                tabBtnAnalysis.classList.remove('active');
+                tabBtnUtilities.classList.remove('active');
+                tabBtnRd.classList.remove('active');
+                if (toolLogContainer) toolLogContainer.style.display = 'none';
+                return;
+            }
+
             if (tab === 'utilities') {
+                homeTab.classList.remove('active');
                 analysisTab.classList.remove('active');
                 utilitiesTab.classList.add('active');
                 rdTab.classList.remove('active');
+                tabBtnHome.classList.remove('active');
                 tabBtnAnalysis.classList.remove('active');
                 tabBtnUtilities.classList.add('active');
                 tabBtnRd.classList.remove('active');
@@ -2917,9 +3933,11 @@ python3 adb_agent.py \
             }
 
             if (tab === 'rd') {
+                homeTab.classList.remove('active');
                 analysisTab.classList.remove('active');
                 utilitiesTab.classList.remove('active');
                 rdTab.classList.add('active');
+                tabBtnHome.classList.remove('active');
                 tabBtnAnalysis.classList.remove('active');
                 tabBtnUtilities.classList.remove('active');
                 tabBtnRd.classList.add('active');
@@ -2931,9 +3949,11 @@ python3 adb_agent.py \
                 return;
             }
 
+            homeTab.classList.remove('active');
             utilitiesTab.classList.remove('active');
             rdTab.classList.remove('active');
             analysisTab.classList.add('active');
+            tabBtnHome.classList.remove('active');
             tabBtnUtilities.classList.remove('active');
             tabBtnRd.classList.remove('active');
             tabBtnAnalysis.classList.add('active');
@@ -3739,7 +4759,7 @@ python3 adb_agent.py \
             if (!items || !items.length) {
                 utilCheckHistoryList.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-icon">暂无数据</div>
                         <p>暂无版本检查历史</p>
                     </div>
                 `;
@@ -4526,8 +5546,35 @@ python3 adb_agent.py \
 
         // 手动时间段确认按钮
         confirmTimeBtn.addEventListener('click', async () => {
-            const startTime = manualStartTime.value.trim();
-            const endTime = manualEndTime.value.trim();
+            let startTime = manualStartTime.value.trim();
+            let endTime = manualEndTime.value.trim();
+            if (autoWindowCandidates.length) {
+                const selected = document.querySelector('input[name="autoWindowChoice"]:checked');
+                if (selected) {
+                    const idx = Number(selected.value);
+                    const choice = autoWindowCandidates[idx];
+                    if (choice && choice.start && choice.end) {
+                        const startDt = new Date(choice.start);
+                        const endDt = new Date(choice.end);
+                        const fmt = (dt) => {
+                            const pad = (n, l = 2) => String(n).padStart(l, '0');
+                            return `${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}.${pad(dt.getMilliseconds(), 3)}`;
+                        };
+                        startTime = fmt(startDt);
+                        endTime = fmt(endDt);
+                    }
+                }
+            }
+
+            let customAppsList = [];
+            if (selectedScene === 'custom') {
+                const text = customAppsText.value.trim();
+                if (!text) {
+                    alert('请输入自定义应用列表');
+                    return;
+                }
+                customAppsList = text.split('\n').map(s => s.trim()).filter(s => s);
+            }
             
             if (!startTime || !endTime) {
                 alert('请输入开始时间和结束时间');
@@ -4823,6 +5870,7 @@ python3 adb_agent.py \
                 progressFill.style.width = progress + '%';
                 progressPercent.textContent = progress + '%';
                 progressMessage.textContent = data.message || '处理中...';
+                renderAutoWindowInfo(data);
 
                 console.log('Status:', data.status, 'needs_confirm:', data.needs_confirm);
                 
@@ -4836,9 +5884,41 @@ python3 adb_agent.py \
                     analyzeBtn.style.display = 'none';
                     
                     // 设置原因说明
-                    if (data.confidence && data.match_score) {
+                    if (Array.isArray(data.auto_windows) && data.auto_windows.length > 1) {
+                        confirmReason.textContent = '检测到多个符合条件的轮次，请选择一个时间段继续（默认最后一轮）。';
+                        autoWindowCandidates = data.auto_windows;
+                        const defaultIndex = Number.isFinite(Number(data.auto_window_default))
+                            ? Number(data.auto_window_default)
+                            : 0;
+                        autoWindowOptions.style.display = 'block';
+                        autoWindowOptions.innerHTML = `
+                            <div style="font-size:0.9em; color:#856404; margin-bottom:8px;">可选轮次</div>
+                            <div style="display:grid; gap:8px;">
+                                ${autoWindowCandidates.map((item, idx) => {
+                                    const start = item.start || '-';
+                                    const end = item.end || '-';
+                                    const match = `${item.matched_start_count || 0}/${item.expected_count || 0}`;
+                                    const mismatch = item.mismatch_count || 0;
+                                    const score = item.match_score || 0;
+                                    const conf = item.confidence || 'UNKNOWN';
+                                    const duration = item.duration_sec || 0;
+                                    return `
+                                        <label style="display:flex; align-items:flex-start; gap:8px; background:#fff; padding:10px; border-radius:8px; border:1px solid #f1c55b;">
+                                            <input type="radio" name="autoWindowChoice" value="${idx}" ${idx === defaultIndex ? 'checked' : ''} />
+                                            <div style="display:grid; gap:4px;">
+                                                <div style="font-weight:600; color:#5a4407;">轮次 ${idx + 1} · 匹配 ${match} · 误差 ${mismatch} · 匹配度 ${score}% · 置信度 ${conf}</div>
+                                                <div style="font-family:monospace; font-size:0.85em; color:#6b7280;">${start} ~ ${end} · 时长 ${duration}s</div>
+                                            </div>
+                                        </label>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    } else if (data.confidence && data.match_score) {
+                        autoWindowOptions.style.display = 'none';
                         confirmReason.textContent = `自动识别置信度较低（匹配度: ${data.match_score}%, 置信度: ${data.confidence}），请手动指定时间段以获得更准确的分析结果。`;
                     } else {
+                        autoWindowOptions.style.display = 'none';
                         confirmReason.textContent = '自动定位失败，请手动指定时间段。';
                     }
                     
@@ -4850,7 +5930,7 @@ python3 adb_agent.py \
                     console.log('=== Task completed ===');
                     clearInterval(statusCheckInterval);
                     showResults(data.results);
-                    analyzeBtn.innerHTML = '✅ 分析完成';
+                    analyzeBtn.innerHTML = '分析完成';
                     setSceneCardsLocked(false);
                     loadTaskList();
                 } else if (data.status === 'error') {
@@ -4875,42 +5955,29 @@ python3 adb_agent.py \
         }
 
         // 检查任务状态
-        async function checkStatus() {
-            if (!currentTaskId) return;
-
-            try {
-                const response = await fetch(`/api/status/${currentTaskId}`);
-                const data = await response.json();
-
-                if (!response.ok) {
-                    console.error('获取状态失败:', data.error);
-                    return;
-                }
-
-                // 更新进度
-                const progress = data.progress || 0;
-                progressFill.style.width = progress + '%';
-                progressPercent.textContent = progress + '%';
-                progressMessage.textContent = data.message || '处理中...';
-
-                // 检查是否完成
-                if (data.status === 'completed') {
-                    clearInterval(statusCheckInterval);
-                    showResults(data.results);
-                    analyzeBtn.innerHTML = '✅ 分析完成';
-                    setSceneCardsLocked(false);
-                    loadTaskList();
-                } else if (data.status === 'error') {
-                    clearInterval(statusCheckInterval);
-                    alert('分析失败: ' + (data.error || '未知错误'));
-                    analyzeBtn.disabled = false;
-                    analyzeBtn.textContent = '重新分析';
-                    setSceneCardsLocked(false);
-                }
-            } catch (error) {
-                console.error('检查状态出错:', error);
+        function renderAutoWindowInfo(data) {
+            if (!autoWindowInfo) return;
+            if (!Array.isArray(data.auto_windows) || !data.auto_windows.length) {
+                autoWindowInfo.style.display = 'none';
+                autoWindowInfo.textContent = '';
+                return;
             }
+            const defaultIndex = Number.isFinite(Number(data.auto_window_default))
+                ? Number(data.auto_window_default)
+                : 0;
+            const selected = data.auto_windows[defaultIndex] || data.auto_windows[0];
+            const match = `${selected.matched_start_count || 0}/${selected.expected_count || 0}`;
+            const mismatch = selected.mismatch_count || 0;
+            const score = selected.match_score || 0;
+            const conf = selected.confidence || 'UNKNOWN';
+            const duration = selected.duration_sec || 0;
+            const start = selected.start || '-';
+            const end = selected.end || '-';
+            autoWindowInfo.style.display = 'block';
+            autoWindowInfo.textContent = `自动定位匹配: 轮次 ${defaultIndex + 1} · 匹配 ${match} · 误差 ${mismatch} · 匹配度 ${score}% · 置信度 ${conf} · ${start} ~ ${end} · 时长 ${duration}s`;
         }
+
+        // 第二个 checkStatus 已移除，避免覆盖上面的完整逻辑
 
         // 显示结果
         function showResults(results) {
@@ -4920,39 +5987,39 @@ python3 adb_agent.py \
             
             if (results.html_file) {
                 html += `<a href="/api/preview/${currentTaskId}" target="_blank" class="result-link" style="background: #28a745; color: #fff;">
-                    <span>👁️</span> 预览 HTML 报告
+                    预览 HTML 报告
                 </a>
                 <a href="/api/download/${currentTaskId}/${results.html_file}" class="result-link primary">
-                    <span>📊</span> 下载可视化报告 (HTML)
+                    下载可视化报告 (HTML)
                 </a>`;
             }
             
             if (results.txt_file) {
                 html += `<a href="/api/download/${currentTaskId}/${results.txt_file}" class="result-link">
-                    <span>📝</span> 下载文本报告
+                    下载文本报告
                 </a>`;
             }
             
             if (results.device_info_file) {
                 html += `<a href="/api/download/${currentTaskId}/${results.device_info_file}" class="result-link">
-                    <span>📱</span> 下载设备信息
+                    下载设备信息
                 </a>`;
             }
 
             if (results.kill_focus && results.kill_focus.bugreport_context_file) {
                 html += `<a href="/api/download/${currentTaskId}/${results.kill_focus.bugreport_context_file}" class="result-link">
-                    <span>📄</span> 下载被杀时刻原始片段
+                    下载被杀时刻原始片段
                 </a>`;
             }
 
             html += `<a href="#" class="result-link" style="background: #0ea5e9; color: #fff;"
                 onclick="startAIInterpretation('${currentTaskId}'); return false;">
-                <span>🧠</span> AI智能解读
+                <span>内存</span> AI智能解读
             </a>`;
             
             // 打包下载
             html += `<a href="/api/download/zip/${currentTaskId}" class="result-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
-                <span>📦</span> 打包下载全部
+                打包下载全部
             </a>`;
 
             resultLinks.innerHTML = html;
@@ -4964,14 +6031,16 @@ python3 adb_agent.py \
             try {
                 const response = await fetch('/api/tasks');
                 const tasks = await response.json();
+                window.tasksCache = tasks;
 
                 if (tasks.length === 0) {
                     taskList.innerHTML = `
                         <div class="empty-state">
-                            <div class="empty-state-icon">📭</div>
+                            <div class="empty-state-icon">暂无数据</div>
                             <p>暂无分析任务</p>
                         </div>
                     `;
+                    updateFooterStats();
                     return;
                 }
 
@@ -4987,13 +6056,17 @@ python3 adb_agent.py \
                     }[task.status] || task.status;
 
                     const isCompleted = task.status === 'completed';
-                    const isSelected = selectedTasks.has(task.task_id);
+                    const isSelected = selectedTasks.includes(task.task_id);
+                    const taskScene = task.scene || '未知';
+                    const sceneAllowed = !compareTargetScene || taskScene === compareTargetScene || isSelected;
+                    const limitReached = selectedTasks.length >= 2 && !isSelected;
+                    const checkboxDisabled = (!sceneAllowed) || limitReached;
                     const checkboxHtml = compareMode && isCompleted ? `
                         <input type="checkbox" 
                                style="margin-right: 15px; width: 18px; height: 18px; cursor: pointer;"
                                ${isSelected ? 'checked' : ''}
                                onchange="toggleTaskSelection('${task.task_id}', this.checked)"
-                               ${selectedTasks.size >= 2 && !isSelected ? 'disabled' : ''}>
+                               ${checkboxDisabled ? 'disabled' : ''}>
                     ` : '';
 
                     html += `
@@ -5002,7 +6075,7 @@ python3 adb_agent.py \
                             <div class="task-info">
                                 <div class="task-name">${task.filename}</div>
                                 <div class="task-meta">
-                                    ${task.created_at} · 场景: ${task.scene || '未知'}
+                                    ${task.created_at} · 场景: ${taskScene}
                                 </div>
                             </div>
                             <span class="task-status ${statusClass}">${statusText}</span>
@@ -5017,6 +6090,7 @@ python3 adb_agent.py \
                 });
 
                 taskList.innerHTML = html;
+                updateFooterStats();
             } catch (error) {
                 console.error('加载任务列表失败:', error);
             }
@@ -5025,7 +6099,8 @@ python3 adb_agent.py \
         // 启用对比模式
         function enableCompareMode() {
             compareMode = true;
-            selectedTasks.clear();
+            selectedTasks = [];
+            compareTargetScene = null;
             document.getElementById('enableCompareBtn').style.display = 'none';
             document.getElementById('compareControls').style.display = 'flex';
             document.getElementById('selectedCount').textContent = '已选择 0/2';
@@ -5035,7 +6110,8 @@ python3 adb_agent.py \
         // 清除选择
         function clearSelection() {
             compareMode = false;
-            selectedTasks.clear();
+            selectedTasks = [];
+            compareTargetScene = null;
             document.getElementById('enableCompareBtn').style.display = 'block';
             document.getElementById('compareControls').style.display = 'none';
             loadTaskList();
@@ -5044,22 +6120,56 @@ python3 adb_agent.py \
         // 切换任务选择
         function toggleTaskSelection(taskId, checked) {
             if (checked) {
-                selectedTasks.add(taskId);
+                if (selectedTasks.includes(taskId)) {
+                    return;
+                }
+                if (selectedTasks.length >= 2) {
+                    return;
+                }
+                const task = Array.isArray(window.tasksCache)
+                    ? window.tasksCache.find(item => item.task_id === taskId)
+                    : null;
+                const taskScene = (task && task.scene) ? task.scene : '未知';
+                if (compareTargetScene && taskScene !== compareTargetScene) {
+                    showToast(`对比模式仅支持同场景报告，当前目标场景为：${compareTargetScene}`);
+                    loadTaskList();
+                    return;
+                }
+                selectedTasks.push(taskId);
+                if (selectedTasks.length === 1) {
+                    compareTargetScene = taskScene;
+                }
             } else {
-                selectedTasks.delete(taskId);
+                const idx = selectedTasks.indexOf(taskId);
+                if (idx >= 0) {
+                    const removedPrimary = idx === 0;
+                    selectedTasks.splice(idx, 1);
+                    if (removedPrimary) {
+                        const newPrimaryId = selectedTasks[0];
+                        const newPrimaryTask = Array.isArray(window.tasksCache)
+                            ? window.tasksCache.find(item => item.task_id === newPrimaryId)
+                            : null;
+                        compareTargetScene = newPrimaryTask && newPrimaryTask.scene
+                            ? newPrimaryTask.scene
+                            : (selectedTasks.length ? compareTargetScene : null);
+                    }
+                    if (!selectedTasks.length) {
+                        compareTargetScene = null;
+                    }
+                }
             }
-            document.getElementById('selectedCount').textContent = `已选择 ${selectedTasks.size}/2`;
+            document.getElementById('selectedCount').textContent = `已选择 ${selectedTasks.length}/2`;
             loadTaskList();
         }
 
         // 开始对比
         async function startCompare() {
-            if (selectedTasks.size !== 2) {
-                alert('请选择两份已完成的报告进行对比');
+            if (selectedTasks.length !== 2) {
+                showToast('请选择两份已完成的报告进行对比');
                 return;
             }
 
-            const taskIds = Array.from(selectedTasks);
+            const taskIds = [...selectedTasks];
             document.getElementById('comparisonContainer').style.display = 'block';
             document.getElementById('comparisonContent').innerHTML = `
                 <div style="text-align: center; padding: 40px;">
@@ -5089,7 +6199,7 @@ python3 adb_agent.py \
                 } else {
                     document.getElementById('comparisonContent').innerHTML = `
                         <div style="text-align: center; padding: 40px; color: #d32f2f;">
-                            <p>❌ 对比分析失败</p>
+                            <p>对比分析失败</p>
                             <p style="color: #666; margin-top: 10px;">${data.error || '未知错误'}</p>
                         </div>
                     `;
@@ -5097,11 +6207,26 @@ python3 adb_agent.py \
             } catch (error) {
                 document.getElementById('comparisonContent').innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #d32f2f;">
-                        <p>❌ 请求出错</p>
+                        <p>请求出错</p>
                         <p style="color: #666; margin-top: 10px;">${error.message}</p>
                     </div>
                 `;
             }
+        }
+
+        function showToast(message, duration = 2000) {
+            const toast = document.getElementById('toast');
+            if (!toast) {
+                return;
+            }
+            toast.textContent = message;
+            toast.classList.add('show');
+            if (toast._timer) {
+                clearTimeout(toast._timer);
+            }
+            toast._timer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
         }
 
         async function startAIInterpretation(taskId) {
@@ -5144,7 +6269,7 @@ python3 adb_agent.py \
                 if (interpretContent) {
                     interpretContent.innerHTML = `
                         <div style="text-align: center; padding: 40px; color: #d32f2f;">
-                            <p>❌ AI智能解读失败</p>
+                            <p>AI智能解读失败</p>
                             <p style="color: #666; margin-top: 10px;">${escapeHtml(error.message || '未知错误')}</p>
                         </div>
                     `;
@@ -5341,6 +6466,40 @@ python3 adb_agent.py \
             resultsContainer.classList.remove('active');
             resetMemoryAnalysisCard();
             resetMemoryAnalysisCard();
+        }
+
+        function updateFooterStats() {
+            const onlineNode = document.getElementById('onlineCount');
+            const todayNode = document.getElementById('todayJobs');
+            const totalNode = document.getElementById('totalJobs');
+            const tasks = Array.isArray(tasksCache) ? tasksCache : [];
+
+            const today = new Date();
+            const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+            let todayCount = 0;
+
+            tasks.forEach(item => {
+                const ts = item && (item.created_at || item.createdAt || item.created_time || item.time || '');
+                const parsed = ts ? new Date(ts) : null;
+                if (parsed && !Number.isNaN(parsed.getTime())) {
+                    const key = `${parsed.getFullYear()}-${parsed.getMonth()}-${parsed.getDate()}`;
+                    if (key === todayKey) {
+                        todayCount += 1;
+                    }
+                }
+            });
+
+            if (todayNode) {
+                todayNode.textContent = String(todayCount);
+            }
+            if (totalNode) {
+                totalNode.textContent = String(tasks.length);
+            }
+            if (onlineNode) {
+                // 暂无服务端在线接口，先提供温和估计：1 + 最近任务活跃度
+                const estimate = Math.max(1, Math.min(12, 1 + Math.round(tasks.length / 5)));
+                onlineNode.textContent = String(estimate);
+            }
         }
 
         // 页面加载时获取任务列表

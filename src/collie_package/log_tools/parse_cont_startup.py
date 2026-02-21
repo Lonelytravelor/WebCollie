@@ -3583,6 +3583,7 @@ def generate_report_html(
             etype = e.get("type")
             if etype == "kill":
                 adj_val = e.get("details", {}).get("proc_info", {}).get("adj") or "未知"
+                pid_val = e.get("details", {}).get("proc_info", {}).get("pid") or "未知"
                 killtype_val = (
                     e.get("details", {}).get("kill_info", {}).get("killTypeDesc")
                     or e.get("details", {}).get("kill_info", {}).get("killType")
@@ -3590,6 +3591,7 @@ def generate_report_html(
                 )
             else:
                 adj_val = e.get("details", {}).get("adj") or "未知"
+                pid_val = e.get("details", {}).get("pid") or "未知"
                 killtype_val = "LMK"
 
             adj_txt = str(adj_val)
@@ -3599,9 +3601,10 @@ def generate_report_html(
             summary_txt = (
                 f"{_pad_col(f'EVENT {idx+1}', 10)}  "
                 f"{_pad_col(f'TYPE {etype_txt}', 10)}  "
-                f"{_pad_col(f'PKG {base}', 42)}  "
+                f"{_pad_col(f'PKG {base}', 36)}  "
+                f"{_pad_col(f'PID {pid_val}', 12)}  "
                 f"{_pad_col(f'ADJ {adj_txt}', 12)}  "
-                f"{_pad_col(f'KILLTYPE {killtype_val}', 24)}  "
+                f"{_pad_col(f'KILLTYPE {killtype_val}', 22)}  "
                 f"{_pad_col(time_txt, 18)}"
             )
 
@@ -5772,19 +5775,97 @@ def _find_last_window_by_sequence_tolerance(
     return None
 
 
-def detect_last_complete_cont_startup_window(
+def _find_all_windows_by_sequence_tolerance(
+    launches: List[dict],
+    expected_pkgs: List[str],
+    tolerance: int = 2,
+    max_candidates: int = 12,
+) -> List[dict]:
+    """
+    在 wm 启动序列中寻找“全部可匹配窗口”。
+    误差定义：基于 LCS 的插入/缺失总数。
+    返回按 end_idx 从新到旧排序的候选列表。
+    """
+    if not launches or not expected_pkgs:
+        return []
+
+    observed_pkgs = [rec["process_name"] for rec in launches]
+    expected_len = len(expected_pkgs)
+    min_len = max(1, expected_len - tolerance)
+    max_len = min(len(observed_pkgs), expected_len + tolerance)
+    candidates = []
+    seen = set()
+
+    for end_idx in range(len(observed_pkgs) - 1, -1, -1):
+        local_best = None
+        for win_len in range(max_len, min_len - 1, -1):
+            start_idx = end_idx - win_len + 1
+            if start_idx < 0:
+                continue
+            window = observed_pkgs[start_idx:end_idx + 1]
+            lcs = _lcs_length(expected_pkgs, window)
+            mismatch = (expected_len - lcs) + (len(window) - lcs)
+            if mismatch > tolerance:
+                continue
+
+            precision = (lcs / len(window)) if window else 0.0
+            recall = (lcs / expected_len) if expected_len else 0.0
+            f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+            candidate = {
+                "start_idx": start_idx,
+                "end_idx": end_idx,
+                "observed_count": len(window),
+                "matched_count": lcs,
+                "mismatch_count": mismatch,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "window_sequence": window,
+            }
+
+            if local_best is None:
+                local_best = candidate
+                continue
+            better = (
+                candidate["mismatch_count"] < local_best["mismatch_count"]
+                or (
+                    candidate["mismatch_count"] == local_best["mismatch_count"]
+                    and candidate["matched_count"] > local_best["matched_count"]
+                )
+                or (
+                    candidate["mismatch_count"] == local_best["mismatch_count"]
+                    and candidate["matched_count"] == local_best["matched_count"]
+                    and candidate["f1"] > local_best["f1"]
+                )
+            )
+            if better:
+                local_best = candidate
+
+        if local_best:
+            key = (local_best["start_idx"], local_best["end_idx"])
+            if key in seen:
+                continue
+            seen.add(key)
+            candidates.append(local_best)
+            if max_candidates and len(candidates) >= max_candidates:
+                break
+
+    return candidates
+
+
+def detect_cont_startup_windows(
     file_path: str,
     target_apps: List[str],
     rounds: int = 2,
-) -> Optional[dict]:
+    max_candidates: int = 12,
+) -> List[dict]:
     """
-    依据给定 app 顺序，从日志中定位“最后完整连续启动过程”时间段。
-    - 仅基于 wm_set_resumed_activity 序列匹配
-    - 顺序和数量一致，允许误差 <= 10（插入/缺失）
+    依据给定 app 顺序，从日志中定位“全部可匹配连续启动过程”时间段。
+    返回按窗口结束时间从新到旧排序的候选列表。
     """
     apps = _normalize_app_list(target_apps or [])
     if not apps:
-        return None
+        return []
 
     resolved_file_path = file_path
     cleanup_path = None
@@ -5804,112 +5885,124 @@ def detect_last_complete_cont_startup_window(
                 pass
 
     if not launches:
-        return None
+        return []
 
     rounds = max(1, int(rounds))
-    # 允许最多 10 个意外启动/缺失，提升复杂场景下的窗口命中率。
     tolerance = 10
     expected_variants = [
         ("full_round_double", apps * rounds),
         ("per_app_double", [pkg for pkg in apps for _ in range(rounds)]),
     ]
 
-    candidates: List[dict] = []
+    all_candidates: List[dict] = []
     for variant_name, expected_pkgs in expected_variants:
-        matched = _find_last_window_by_sequence_tolerance(
+        matched_list = _find_all_windows_by_sequence_tolerance(
             launches,
             expected_pkgs,
             tolerance=tolerance,
+            max_candidates=max_candidates,
         )
-        if not matched:
-            continue
-        candidates.append(
-            {
-                "variant": variant_name,
-                "expected_pkgs": expected_pkgs,
-                "match": matched,
-            }
-        )
+        for matched in matched_list:
+            all_candidates.append(
+                {
+                    "variant": variant_name,
+                    "expected_pkgs": expected_pkgs,
+                    "match": matched,
+                }
+            )
 
-    if not candidates:
-        return None
+    if not all_candidates:
+        return []
 
     all_times = [rec.get("time") for rec in launches if isinstance(rec.get("time"), datetime)]
     if not all_times:
-        return None
+        return []
     min_time = min(all_times)
     max_time = max(all_times)
 
-    for c in candidates:
+    results: List[dict] = []
+    for c in all_candidates:
         m = c["match"]
-        c["window_start_time"] = launches[m["start_idx"]]["time"]
-        c["window_end_time"] = launches[m["end_idx"]]["time"]
+        first_time = launches[m["start_idx"]]["time"]
+        last_time = launches[m["end_idx"]]["time"]
+        total_duration_sec = (last_time - first_time).total_seconds()
+        max_total_sec = max(240, len(c["expected_pkgs"]) * 30)
+        if total_duration_sec > max_total_sec:
+            continue
 
-    candidates.sort(
+        window_start = max(min_time, first_time - timedelta(seconds=5))
+        window_end = min(max_time, last_time + timedelta(seconds=30))
+        if window_end < last_time:
+            window_end = last_time
+
+        expected_count = len(c["expected_pkgs"])
+        observed_count = m["observed_count"]
+        matched_count = m["matched_count"]
+        mismatch_count = m["mismatch_count"]
+        match_score = int(round(max(m["f1"], 0.0) * 100))
+        tail_gap_sec = max((max_time - last_time).total_seconds(), 0.0)
+        bugreport_ts_hint = _extract_bugreport_datetime_hint(source_desc)
+        bugreport_gap_sec = None
+        if bugreport_ts_hint:
+            bugreport_gap_sec = abs((bugreport_ts_hint - max_time).total_seconds())
+
+        confidence = "LOW"
+        if mismatch_count == 0 and match_score >= 95 and tail_gap_sec <= 180:
+            confidence = "HIGH"
+        elif mismatch_count <= 1 and match_score >= 85 and tail_gap_sec <= 600:
+            confidence = "MEDIUM"
+
+        results.append(
+            {
+                "window_start": window_start,
+                "window_end": window_end,
+                "first_start_time": first_time,
+                "last_start_time": last_time,
+                "file_end_time": max_time,
+                "tail_gap_sec": tail_gap_sec,
+                "duration_sec": total_duration_sec,
+                "app_count": len(apps),
+                "rounds": rounds,
+                "expected_count": expected_count,
+                "observed_count": observed_count,
+                "matched_start_count": matched_count,
+                "mismatch_count": mismatch_count,
+                "tolerance": tolerance,
+                "precision": m["precision"],
+                "recall": m["recall"],
+                "f1": m["f1"],
+                "match_score": match_score,
+                "match_variant": c["variant"],
+                "bugreport_time_hint": bugreport_ts_hint,
+                "bugreport_to_log_end_gap_sec": bugreport_gap_sec,
+                "confidence": confidence,
+            }
+        )
+
+    results.sort(
         key=lambda x: (
-            x["window_end_time"],
-            -x["match"]["mismatch_count"],
-            x["match"]["matched_count"],
-            x["match"]["f1"],
+            x["window_end"],
+            -x["mismatch_count"],
+            x["matched_start_count"],
+            x["f1"],
         ),
         reverse=True,
     )
-    best = candidates[0]
-    match = best["match"]
+    return results
 
-    first_time = best["window_start_time"]
-    last_time = best["window_end_time"]
-    total_duration_sec = (last_time - first_time).total_seconds()
-    max_total_sec = max(240, len(best["expected_pkgs"]) * 30)
-    if total_duration_sec > max_total_sec:
-        return None
 
-    window_start = max(min_time, first_time - timedelta(seconds=5))
-    window_end = min(max_time, last_time + timedelta(seconds=30))
-    if window_end < last_time:
-        window_end = last_time
-
-    expected_count = len(best["expected_pkgs"])
-    observed_count = match["observed_count"]
-    matched_count = match["matched_count"]
-    mismatch_count = match["mismatch_count"]
-    match_score = int(round(max(match["f1"], 0.0) * 100))
-    tail_gap_sec = max((max_time - last_time).total_seconds(), 0.0)
-    bugreport_ts_hint = _extract_bugreport_datetime_hint(source_desc)
-    bugreport_gap_sec = None
-    if bugreport_ts_hint:
-        bugreport_gap_sec = abs((bugreport_ts_hint - max_time).total_seconds())
-
-    confidence = "LOW"
-    if mismatch_count == 0 and match_score >= 95 and tail_gap_sec <= 180:
-        confidence = "HIGH"
-    elif mismatch_count <= 1 and match_score >= 85 and tail_gap_sec <= 600:
-        confidence = "MEDIUM"
-
-    return {
-        "window_start": window_start,
-        "window_end": window_end,
-        "first_start_time": first_time,
-        "last_start_time": last_time,
-        "file_end_time": max_time,
-        "tail_gap_sec": tail_gap_sec,
-        "duration_sec": total_duration_sec,
-        "app_count": len(apps),
-        "rounds": rounds,
-        "expected_count": expected_count,
-        "observed_count": observed_count,
-        "matched_start_count": matched_count,
-        "mismatch_count": mismatch_count,
-        "tolerance": tolerance,
-        "precision": match["precision"],
-        "recall": match["recall"],
-        "f1": match["f1"],
-        "match_score": match_score,
-        "match_variant": best["variant"],
-        "bugreport_time_hint": bugreport_ts_hint,
-        "bugreport_to_log_end_gap_sec": bugreport_gap_sec,
-        "confidence": confidence,
-    }
+def detect_last_complete_cont_startup_window(
+    file_path: str,
+    target_apps: List[str],
+    rounds: int = 2,
+) -> Optional[dict]:
+    """
+    依据给定 app 顺序，从日志中定位“最后完整连续启动过程”时间段。
+    - 仅基于 wm_set_resumed_activity 序列匹配
+    - 顺序和数量一致，允许误差 <= 10（插入/缺失）
+    """
+    windows = detect_cont_startup_windows(file_path, target_apps, rounds=rounds)
+    return windows[0] if windows else None
 
 
 def main(
