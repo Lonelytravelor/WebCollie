@@ -82,6 +82,12 @@ web_app/
 - 前端：原生 HTML5 + CSS3 + JavaScript
 - 解析引擎：复用 Collie 原有的 parse_cont_startup 模块
 
+## 架构说明
+
+- `web_app` 作为前端入口与 API 调度层
+- 核心业务逻辑下沉到 `src/collie_package`（如 simpleperf、cont_startup_stay、监控与采集任务）
+- Web 仅做参数校验、任务状态维护与结果展示
+
 ## 注意事项
 
 1. 确保项目根目录的 `src/collie_package` 存在且可访问

@@ -16,6 +16,24 @@ from pathlib import Path
 from flask import Blueprint, jsonify, request, send_file
 
 from collie_package.config_loader import load_app_list_config, load_app_settings, resolve_app_config_path, to_flat_app_config
+from collie_package.utilities.web_tasks import (
+    TaskHooks,
+    run_app_died_monitor,
+    run_check_app_versions,
+    run_collect_device_meminfo,
+    run_cont_startup_stay,
+    run_device_info,
+    run_meminfo_live,
+    run_meminfo_summary,
+    run_monkey,
+    run_package_version,
+    run_prepare_apps,
+    run_compile_apps,
+    run_app_install_apk,
+    run_store_install_apps,
+    resolve_packages_from_preset,
+    build_cont_startup_config,
+)
 
 
 def _import_adb_executor_api():
@@ -453,12 +471,6 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
         except Exception:
             raise RuntimeError("无效包名")
 
-    def _extract_version_name(text):
-        match = re.search(r"versionName=(\S+)", text or "")
-        if match:
-            return match.group(1)
-        return "未获取到版本号"
-
     def _validate_positive_int(value, name, min_value=1, max_value=1000000):
         if not isinstance(value, int):
             raise RuntimeError(f"{name} 必须为整数")
@@ -489,6 +501,17 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
 
         return "\n".join([border, header_line, border, *body_lines, border])
 
+    def _make_task_hooks(job):
+        return TaskHooks(
+            progress=lambda p, m: _job_set_progress(job, p, m),
+            log=lambda text: _append_log(job["stdout_path"], f"{text}\n"),
+            warn=lambda text: _append_log(job["stderr_path"], f"{text}\n"),
+            check_cancel=lambda: _check_cancel(job),
+            wait_if_paused=lambda: _wait_if_paused(job),
+            sleep_with_control=lambda sec: _sleep_with_control(job, sec),
+            is_cancelled=lambda: bool(job.get("cancel_requested")),
+        )
+
     def _get_user_utilities_root(client_ip=None):
         current_ip = client_ip or get_client_ip()
         user_folder = get_user_folder(current_ip)
@@ -514,8 +537,9 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
         files = []
         if not job_dir.exists():
             return files
+        skip_names = {"stdout.log", "stderr.log", "simpleperf", "report_html.py"}
         for f in sorted(job_dir.iterdir()):
-            if f.is_file() and f.name not in {"stdout.log", "stderr.log"}:
+            if f.is_file() and f.name not in skip_names:
                 files.append({"name": f.name, "size": f.stat().st_size})
         return files
 
@@ -563,110 +587,81 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
         device_id = job["device_id"]
         out_dir = Path(job["job_dir"])
 
-        def _coerce_bool(value, name, default=False):
-            if value is None:
-                return bool(default)
-            if isinstance(value, bool):
-                return value
-            if isinstance(value, int) and value in {0, 1}:
-                return bool(value)
-            if isinstance(value, str):
-                text = value.strip().lower()
-                if text in {"true", "1", "yes", "y"}:
-                    return True
-                if text in {"false", "0", "no", "n"}:
-                    return False
-            raise RuntimeError(f"{name} 必须为 bool")
-
         if action == "device_info":
-            model = _run_cmd(job, _adb_command(device_id, ["shell", "getprop", "ro.product.model"]))
-            android_ver = _run_cmd(job, _adb_command(device_id, ["shell", "getprop", "ro.build.version.release"]))
-            sdk = _run_cmd(job, _adb_command(device_id, ["shell", "getprop", "ro.build.version.sdk"]))
-            content = [
-                f"device_id: {device_id}",
-                f"model: {model.strip()}",
-                f"android: {android_ver.strip()}",
-                f"sdk: {sdk.strip()}",
-            ]
-            (out_dir / "device_info.txt").write_text("\n".join(content) + "\n", encoding="utf-8")
+            hooks = _make_task_hooks(job)
+            run_device_info(
+                device_id=device_id,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+            )
             return
 
         if action == "package_version":
             package_name = str(params.get("package", "")).strip()
             _validate_package(package_name)
-            output = _run_cmd(job, _adb_command(device_id, ["shell", "dumpsys", "package", package_name]), timeout=180)
-            (out_dir / f"package_{package_name}.txt").write_text(output, encoding="utf-8")
+            hooks = _make_task_hooks(job)
+            run_package_version(
+                package_name=package_name,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+            )
             return
 
         if action == "check_app_versions":
             preset_name = str(params.get("preset_name", "")).strip()
-            packages = params.get("packages")
-            if preset_name:
-                cfg = _load_app_config()
-                preset = cfg.get(preset_name)
-                if not isinstance(preset, list) or not preset:
-                    raise RuntimeError("preset_name 无效或为空")
-                packages = preset
-
-            if not isinstance(packages, list) or not packages:
-                raise RuntimeError("packages 必须是非空数组，或提供 preset_name")
-
-            pkg_list = [str(p).strip() for p in packages if str(p).strip()]
-            for pkg in pkg_list:
-                _validate_package(pkg)
-
-            rows = []
-            total = len(pkg_list)
-            _job_set_progress(job, 5, f"开始检查应用版本，共 {total} 个")
-            for idx, pkg in enumerate(pkg_list):
-                _check_cancel(job)
-                _wait_if_paused(job)
-                _job_set_progress(job, 5 + int(85 * (idx / max(1, total))), f"检查 {idx + 1}/{total}: {pkg}")
-                output = _run_cmd(
+            packages = resolve_packages_from_preset(preset_name, params.get("packages"), _load_app_config)
+            hooks = _make_task_hooks(job)
+            run_check_app_versions(
+                packages=packages,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(
                     job,
-                    _adb_command(device_id, ["shell", "dumpsys", "package", pkg]),
-                    timeout=120,
+                    _adb_command(device_id, list(args)),
+                    timeout=timeout,
                     log_stdout=False,
-                )
-                version = _extract_version_name(output)
-                rows.append((pkg, version))
-
-            table_text = "包名-版本号对照表\n" + _render_ascii_table(("package_name", "version_name"), rows)
-            _append_log(job["stdout_path"], table_text + "\n")
-            (out_dir / "app_versions.txt").write_text(table_text + "\n", encoding="utf-8")
-            _job_set_progress(job, 100, "应用版本检查完成")
+                ),
+                hooks=hooks,
+                validate_package=_validate_package,
+            )
             return
 
         if action == "meminfo_live":
             package_name = str(params.get("package", "")).strip()
-            cmd = ["shell", "dumpsys", "meminfo"]
-            if package_name:
-                _validate_package(package_name)
-                cmd.append(package_name)
-            output = _run_cmd(job, _adb_command(device_id, cmd), timeout=180)
-            (out_dir / "meminfo_live.txt").write_text(output, encoding="utf-8")
+            hooks = _make_task_hooks(job)
+            run_meminfo_live(
+                package_name=package_name,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+                validate_package=_validate_package,
+            )
             return
 
         if action == "meminfo_summary_live":
-            from collie_package.utilities import meminfo_summary
-
-            raw = _run_cmd(job, _adb_command(device_id, ["shell", "dumpsys", "meminfo"]), timeout=180)
-            report = meminfo_summary.generate_report(raw, f"adb shell dumpsys meminfo ({device_id})")
-            (out_dir / "meminfo_summary.txt").write_text(report, encoding="utf-8")
+            hooks = _make_task_hooks(job)
+            run_meminfo_summary(
+                device_id=device_id,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+            )
             return
 
         if action == "collect_device_meminfo_live":
-            getprop = _run_cmd(job, _adb_command(device_id, ["shell", "getprop"]), timeout=180)
-            meminfo = _run_cmd(job, _adb_command(device_id, ["shell", "dumpsys", "meminfo"]), timeout=180)
-            text = f"# device_id: {device_id}\n\n## getprop\n{getprop}\n\n## dumpsys meminfo\n{meminfo}"
-            (out_dir / "collect_device_meminfo.txt").write_text(text, encoding="utf-8")
+            hooks = _make_task_hooks(job)
+            run_collect_device_meminfo(
+                device_id=device_id,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+            )
             return
 
         if action == "store_install_apps":
             _check_cancel(job)
-            store_package = "com.xiaomi.market"
             preset_name = str(params.get("preset_name", "")).strip()
-            packages = params.get("packages")
             install_interval_sec = params.get("install_interval_sec", 5)
             max_check_seconds = params.get("max_check_seconds", 1200)
 
@@ -675,187 +670,43 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             install_interval_sec = int(install_interval_sec)
             max_check_seconds = int(max_check_seconds)
 
-            if preset_name:
-                cfg = _load_app_config()
-                preset = cfg.get(preset_name)
-                if not isinstance(preset, list) or not preset:
-                    raise RuntimeError("preset_name 无效或为空")
-                packages = preset
-
-            if not isinstance(packages, list) or not packages:
-                raise RuntimeError("packages 必须是非空数组，或提供 preset_name")
-
-            packages = [str(p).strip() for p in packages if str(p).strip()]
+            packages = resolve_packages_from_preset(preset_name, params.get("packages"), _load_app_config)
             for pkg in packages:
-                _validate_package(pkg)
+                _validate_package(str(pkg).strip())
 
-            _job_set_progress(job, 1, "检查设备分辨率")
-            wm_size = _run_cmd(job, _adb_command(device_id, ["shell", "wm", "size"]), timeout=30)
-            size_candidates = _parse_wm_size(wm_size)
-            screen_size = size_candidates[0] if size_candidates else None
+            hooks = _make_task_hooks(job)
 
-            coords_map = _load_install_coords()
-            known_point = None
-            if screen_size:
-                key = f"{screen_size[0]}x{screen_size[1]}".lower()
-                known_point = coords_map.get(key)
+            def _set_manual_confirm(pending):
+                with utilities_jobs_lock:
+                    job["requires_manual_confirm"] = True
+                    job["pending_packages"] = pending
 
-            ratios = []
-            for k, (x, y) in coords_map.items():
-                m = re.match(r"(\d+)x(\d+)", k)
-                if not m:
-                    continue
-                w, h = int(m.group(1)), int(m.group(2))
-                if w and h:
-                    ratios.append((x / w, y / h))
-            ratios += [(0.50, 0.93), (0.50, 0.94)]
+            def _clear_manual_confirm():
+                with utilities_jobs_lock:
+                    job["requires_manual_confirm"] = False
 
-            _job_set_progress(job, 2, "打开应用商店")
-            _run_cmd(
-                job,
-                _adb_command(device_id, ["shell", "monkey", "-p", store_package, "-c", "android.intent.category.LAUNCHER", "1"]),
-                timeout=30,
+            def _set_message(message):
+                with utilities_jobs_lock:
+                    job["message"] = message
+
+            run_store_install_apps(
+                packages=packages,
+                device_id=device_id,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+                is_device_online=lambda: _is_device_online(device_id, owner_ip=job.get("ip")),
+                load_install_coords=_load_install_coords,
+                parse_wm_size=_parse_wm_size,
+                ratio_point=_ratio_point,
+                auto_skip_game_packages=AUTO_SKIP_GAME_PACKAGES,
+                confirm_event=job.get("confirm_event"),
+                set_manual_confirm=_set_manual_confirm,
+                clear_manual_confirm=_clear_manual_confirm,
+                set_message=_set_message,
+                install_interval_sec=install_interval_sec,
+                max_check_seconds=max_check_seconds,
             )
-            time.sleep(2)
-
-            _job_set_progress(job, 5, "读取已安装列表")
-            pm_list = _run_cmd(job, _adb_command(device_id, ["shell", "pm", "list", "packages"]), timeout=60)
-            installed = set()
-            for line in pm_list.splitlines():
-                if line.startswith("package:"):
-                    installed.add(line.replace("package:", "").strip())
-
-            pending = [p for p in packages if p not in installed]
-            if not pending:
-                (out_dir / "store_install_summary.txt").write_text("所有应用已安装\n", encoding="utf-8")
-                _job_set_progress(job, 100, "全部已安装")
-                return
-
-            _append_log(job["stdout_path"], f"\n待安装数量: {len(pending)}\n")
-
-            def _tap_install_once():
-                if known_point and isinstance(known_point, tuple):
-                    x, y = known_point
-                    _run_cmd(job, _adb_command(device_id, ["shell", "input", "tap", str(int(x)), str(int(y))]), timeout=10)
-                    return
-                if ratios:
-                    x, y = _ratio_point(ratios[0], screen_size)
-                    _run_cmd(job, _adb_command(device_id, ["shell", "input", "tap", str(int(x)), str(int(y))]), timeout=10)
-                    return
-                _run_cmd(job, _adb_command(device_id, ["shell", "input", "tap", "540", "2100"]), timeout=10)
-
-            _job_set_progress(job, 10, "依次触发安装")
-            for idx, pkg in enumerate(pending):
-                _check_cancel(job)
-                _job_set_progress(job, 10 + int(40 * (idx / max(1, len(pending)))), f"打开详情页并触发安装: {pkg}")
-                _run_cmd(
-                    job,
-                    _adb_command(
-                        device_id,
-                        [
-                            "shell",
-                            "am",
-                            "start",
-                            "-a",
-                            "android.intent.action.VIEW",
-                            "-d",
-                            f"market://details?id={pkg}",
-                        ],
-                    ),
-                    timeout=30,
-                )
-                _sleep_with_control(job, max(1, install_interval_sec))
-                _tap_install_once()
-                _sleep_with_control(job, 2)
-                _run_cmd(job, _adb_command(device_id, ["shell", "input", "keyevent", "KEYCODE_HOME"]), timeout=10)
-                _sleep_with_control(job, 1)
-
-            _job_set_progress(job, 55, f"本轮触发完成，等待手动确认后再校验（建议间隔 {install_interval_sec}s）")
-            with utilities_jobs_lock:
-                job["requires_manual_confirm"] = True
-                job["pending_packages"] = pending
-
-            manual_confirm_deadline = time.time() + max_check_seconds
-            auto_confirmed = False
-            offline_warned = False
-            while not job.get("confirm_event").is_set():
-                _check_cancel(job)
-                if time.time() >= manual_confirm_deadline and job.get("requires_manual_confirm"):
-                    if _is_device_online(device_id, owner_ip=job.get("ip")):
-                        auto_confirmed = True
-                        with utilities_jobs_lock:
-                            job.get("confirm_event").set()
-                            job["message"] = "等待确认超时，设备在线，自动继续并跳过游戏校验"
-                        _append_log(
-                            job["stdout_path"],
-                            "\n[auto-confirm] 等待 double check 超时，设备在线，自动继续。\n",
-                        )
-                        break
-                    if not offline_warned:
-                        offline_warned = True
-                        with utilities_jobs_lock:
-                            job["message"] = "等待确认超时，但设备当前离线，继续等待手动确认"
-                        _append_log(
-                            job["stderr_path"],
-                            "\n[warn] 等待 double check 超时，但设备当前离线，未自动继续。\n",
-                        )
-                time.sleep(1)
-
-            with utilities_jobs_lock:
-                job["requires_manual_confirm"] = False
-                if auto_confirmed:
-                    job["message"] = "自动继续，开始校验安装结果（跳过游戏）"
-                else:
-                    job["message"] = "已确认，开始校验安装结果"
-
-            deadline = time.time() + max_check_seconds
-            still = set(pending)
-            skipped_games = []
-            if auto_confirmed:
-                skipped_games = sorted(pkg for pkg in still if pkg in AUTO_SKIP_GAME_PACKAGES)
-                if skipped_games:
-                    for pkg in skipped_games:
-                        still.discard(pkg)
-                    _append_log(
-                        job["stdout_path"],
-                        f"\n[auto-confirm] 已跳过游戏校验: {skipped_games}\n",
-                    )
-            _job_set_progress(job, 65, "校验安装结果")
-            while still and time.time() < deadline:
-                _check_cancel(job)
-                pm_list_now = _run_cmd(job, _adb_command(device_id, ["shell", "pm", "list", "packages"]), timeout=60)
-                installed_now = set()
-                for line in pm_list_now.splitlines():
-                    if line.startswith("package:"):
-                        installed_now.add(line.replace("package:", "").strip())
-
-                finished = [pkg for pkg in list(still) if pkg in installed_now]
-                for pkg in finished:
-                    still.remove(pkg)
-                if finished:
-                    _append_log(job["stdout_path"], f"\n校验通过: {finished}\n")
-                done = len(pending) - len(still)
-                _job_set_progress(job, 65 + int(30 * (done / max(1, len(pending)))), f"校验完成 {done}/{len(pending)}")
-                if still:
-                    _sleep_with_control(job, 6)
-
-            summary_lines = [
-                f"device_id: {device_id}",
-                f"screen_size_candidates: {size_candidates}",
-                f"known_point: {known_point}",
-                f"pending_total: {len(pending)}",
-                f"install_interval_sec: {install_interval_sec}",
-                f"max_check_seconds: {max_check_seconds}",
-                f"auto_confirmed: {auto_confirmed}",
-                f"skipped_games_in_check: {skipped_games}",
-                f"not_finished: {sorted(list(still))}",
-            ]
-            (out_dir / "store_install_summary.txt").write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
-
-            if still:
-                raise RuntimeError(f"部分应用未确认安装完成: {sorted(list(still))}")
-
-            _job_set_progress(job, 100, "安装流程完成")
             return
 
         if action == "app_install_apk":
@@ -865,109 +716,63 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             apk_file = Path(apk_path)
             if not apk_file.exists() or not apk_file.is_file() or apk_file.suffix.lower() != ".apk":
                 raise RuntimeError("apk_path 无效，必须是存在的 .apk 文件")
-            _run_cmd(job, _adb_command(device_id, ["install", "-r", str(apk_file)]), timeout=600)
             package_name = str(params.get("package", "")).strip()
             launch = bool(params.get("launch", False))
-            if launch and package_name:
-                _validate_package(package_name)
-                _run_cmd(
-                    job,
-                    _adb_command(device_id, ["shell", "monkey", "-p", package_name, "-c", "android.intent.category.LAUNCHER", "1"]),
-                    timeout=120,
-                )
+            hooks = _make_task_hooks(job)
+            run_app_install_apk(
+                apk_path=apk_file,
+                package_name=package_name,
+                launch=launch,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+                validate_package=_validate_package,
+            )
             return
 
         if action == "compile_apps":
-            packages = params.get("packages")
-            if (not isinstance(packages, list) or not packages) and isinstance(params.get("preset_name"), str):
-                preset_name = params.get("preset_name")
-                preset = _load_app_config().get(preset_name, [])
-                if isinstance(preset, list):
-                    packages = preset
-            if not isinstance(packages, list) or not packages:
-                raise RuntimeError("packages 必须是非空数组，或提供 preset_name")
-
-            normalized_packages = []
-            for raw_pkg in packages:
-                pkg = str(raw_pkg).strip()
-                _validate_package(pkg)
-                normalized_packages.append(pkg)
-            if not normalized_packages:
-                raise RuntimeError("未找到可编译包名")
-
+            preset_name = str(params.get("preset_name", "")).strip()
+            packages = resolve_packages_from_preset(preset_name, params.get("packages"), _load_app_config)
             mode = str(params.get("mode", "speed-profile")).strip() or "speed-profile"
             mode = validate_compile_mode(mode)
-            total = len(normalized_packages)
             with utilities_jobs_lock:
-                job["compile_items"] = [{"package": pkg, "result": "待编译"} for pkg in normalized_packages]
-                job["compile_summary"] = {
-                    "total": total,
-                    "completed": 0,
-                    "current": "",
-                    "current_index": 0,
-                    "status": "running",
-                }
+                job["compile_items"] = []
+                job["compile_summary"] = {}
 
-            for idx, pkg in enumerate(normalized_packages):
+            def _update_compile_summary(patch):
                 with utilities_jobs_lock:
                     summary = job.setdefault("compile_summary", {})
-                    summary["current"] = pkg
-                    summary["current_index"] = idx + 1
-                    summary["status"] = "running"
-                    items = job.setdefault("compile_items", [])
-                    if idx < len(items):
-                        items[idx]["result"] = "编译中"
-                _job_set_progress(job, 5 + int((idx * 90) / max(1, total)), f"编译中 {idx + 1}/{total}: {pkg}")
-                try:
-                    _run_cmd(
-                        job,
-                        _adb_command(device_id, ["shell", "cmd", "package", "compile", "-m", mode, "-f", pkg]),
-                        timeout=300,
-                    )
-                except Exception:
-                    with utilities_jobs_lock:
-                        items = job.setdefault("compile_items", [])
-                        if idx < len(items):
-                            items[idx]["result"] = "已取消" if job.get("cancel_requested") else "失败"
-                        summary = job.setdefault("compile_summary", {})
-                        summary["completed"] = idx
-                        summary["status"] = "cancelled" if job.get("cancel_requested") else "error"
-                    raise
+                    summary.update(patch or {})
 
+            def _update_compile_item(idx, patch):
                 with utilities_jobs_lock:
                     items = job.setdefault("compile_items", [])
-                    if idx < len(items):
-                        items[idx]["result"] = "成功"
-                    summary = job.setdefault("compile_summary", {})
-                    summary["completed"] = idx + 1
-                    summary["status"] = "running"
-                _job_set_progress(job, 5 + int(((idx + 1) * 90) / max(1, total)), f"已完成 {idx + 1}/{total}: {pkg}")
+                    while len(items) <= idx:
+                        items.append({"package": "", "result": "待编译"})
+                    items[idx].update(patch or {})
 
-            with utilities_jobs_lock:
-                summary = job.setdefault("compile_summary", {})
-                summary["current"] = ""
-                summary["current_index"] = 0
-                summary["status"] = "completed"
-            _job_set_progress(job, 100, f"编译完成 {total}/{total}")
+            hooks = _make_task_hooks(job)
+            hooks.update_compile_summary = _update_compile_summary
+            hooks.update_compile_item = _update_compile_item
+
+            run_compile_apps(
+                packages=packages,
+                mode=mode,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+                validate_package=_validate_package,
+            )
             return
 
         if action == "prepare_apps":
-            packages = params.get("packages")
-            if (not isinstance(packages, list) or not packages) and isinstance(params.get("preset_name"), str):
-                preset_name = params.get("preset_name")
-                preset = _load_app_config().get(preset_name, [])
-                if isinstance(preset, list):
-                    packages = preset
-            if not isinstance(packages, list) or not packages:
-                raise RuntimeError("packages 必须是非空数组，或提供 preset_name")
-            for pkg in packages:
-                pkg = str(pkg).strip()
-                _validate_package(pkg)
-                _run_cmd(
-                    job,
-                    _adb_command(device_id, ["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"]),
-                    timeout=120,
-                )
+            preset_name = str(params.get("preset_name", "")).strip()
+            packages = resolve_packages_from_preset(preset_name, params.get("packages"), _load_app_config)
+            hooks = _make_task_hooks(job)
+            run_prepare_apps(
+                packages=packages,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+                validate_package=_validate_package,
+            )
             return
 
         if action == "app_died_monitor":
@@ -977,111 +782,45 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             _validate_positive_int(int(interval_sec), "interval_sec", 1, 30)
             interval_sec = int(interval_sec)
 
-            with utilities_jobs_lock:
-                summary = job.setdefault("monitor_summary", {})
-                summary["package"] = package_name
-                summary["interval_sec"] = interval_sec
-                summary["checks"] = 0
-                summary["alive_checks"] = 0
-                summary["dead_checks"] = 0
-                summary["first_alive_time"] = ""
-                summary["first_kill_time"] = ""
-                summary["last_state"] = "init"
-                summary["last_note"] = "监控已启动"
+            def _update_summary(patch):
+                with utilities_jobs_lock:
+                    summary = job.setdefault("monitor_summary", {})
+                    summary.update(patch or {})
 
-            _job_set_progress(job, 5, f"开始监控 {package_name}（每 {interval_sec}s）")
-            _job_add_monitor_detail(job, False, "monitor_started", "开始监控，等待应用启动")
+            def _set_paused(message):
+                with utilities_jobs_lock:
+                    job["paused"] = True
+                    job["status"] = "paused"
+                    job["message"] = message
 
-            first_alive_seen = False
-            first_kill_captured = False
-            last_alive = None
-            while True:
-                _check_cancel(job)
-                _wait_if_paused(job)
+            hooks = TaskHooks(
+                progress=lambda p, m: _job_set_progress(job, p, m),
+                log=lambda text: _append_log(job["stdout_path"], f"{text}\n"),
+                warn=lambda text: _append_log(job["stderr_path"], f"{text}\n"),
+                check_cancel=lambda: _check_cancel(job),
+                wait_if_paused=lambda: _wait_if_paused(job),
+                sleep_with_control=lambda sec: _sleep_with_control(job, sec),
+                is_cancelled=lambda: bool(job.get("cancel_requested")),
+                add_monitor_detail=lambda alive, state, note="": _job_add_monitor_detail(job, alive, state, note),
+                update_monitor_summary=_update_summary,
+                set_paused=_set_paused,
+            )
 
-                if not _is_device_online(device_id, owner_ip=job.get("ip")):
-                    _job_add_monitor_detail(job, False, "device_offline", "设备离线，等待重连")
-                    _job_set_progress(job, 8, "设备离线，等待重连")
-                    _sleep_with_control(job, interval_sec)
-                    continue
-                try:
-                    probe_out = _run_cmd(
-                        job,
-                        _adb_command(device_id, ["shell", "pidof", package_name]),
-                        timeout=15,
-                        log_stdout=False,
-                        log_stderr=False,
-                        allow_returncodes={0, 1},
-                    )
-                    alive_now = bool((probe_out or "").strip())
-                except Exception as exc:
-                    _job_add_monitor_detail(job, False, "probe_error", f"探测失败: {exc}")
-                    _job_set_progress(job, 8, "探测失败，重试中")
-                    _sleep_with_control(job, interval_sec)
-                    continue
-
-                if not first_alive_seen:
-                    if alive_now:
-                        first_alive_seen = True
-                        with utilities_jobs_lock:
-                            job.setdefault("monitor_summary", {})["first_alive_time"] = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        _job_add_monitor_detail(job, True, "first_alive", "检测到应用首次存活，开始等待首次查杀")
-                        _job_set_progress(job, 45, "已检测到应用启动，等待首次查杀")
-                    else:
-                        _job_add_monitor_detail(job, False, "waiting_start", "应用未启动，继续等待")
-                        _job_set_progress(job, 20, "等待应用首次启动")
-                    last_alive = alive_now
-                    _sleep_with_control(job, interval_sec)
-                    continue
-
-                if (not first_kill_captured) and last_alive is True and alive_now is False:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    _job_add_monitor_detail(job, False, "first_killed", "检测到首次查杀，开始抓取全局 dumpsys")
-                    _job_set_progress(job, 80, "检测到首次查杀，抓取全局 dumpsys 中")
-
-                    meminfo_out = _run_cmd(
-                        job,
-                        _adb_command(device_id, ["shell", "dumpsys", "meminfo"]),
-                        timeout=180,
-                    )
-                    activity_out = _run_cmd(
-                        job,
-                        _adb_command(device_id, ["shell", "dumpsys", "activity"]),
-                        timeout=180,
-                    )
-
-                    meminfo_file = out_dir / f"monitor_meminfo_global_{timestamp}.txt"
-                    activity_file = out_dir / f"monitor_activity_{package_name}_{timestamp}.txt"
-                    meminfo_file.write_text(meminfo_out, encoding="utf-8")
-                    activity_file.write_text(activity_out, encoding="utf-8")
-
-                    with utilities_jobs_lock:
-                        summary = job.setdefault("monitor_summary", {})
-                        summary["first_kill_time"] = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        summary["capture_files"] = [meminfo_file.name, activity_file.name]
-                        job["paused"] = True
-                        job["status"] = "paused"
-                        job["message"] = "首次查杀抓取完成，已自动暂停"
-                    _job_add_monitor_detail(
-                        job,
-                        False,
-                        "auto_paused_after_capture",
-                        f"抓取完成并自动暂停: {meminfo_file.name}, {activity_file.name}",
-                    )
-                    _job_set_progress(job, 90, "首次查杀抓取完成，任务已自动暂停")
-                    first_kill_captured = True
-                    last_alive = alive_now
-                    continue
-
-                if alive_now:
-                    _job_add_monitor_detail(job, True, "alive", "监控中")
-                    _job_set_progress(job, 60, "应用存活，持续监控中")
-                else:
-                    _job_add_monitor_detail(job, False, "dead_waiting_restart", "应用当前未存活，等待再次启动后继续监控")
-                    _job_set_progress(job, 55, "应用当前未存活，等待再次启动")
-
-                last_alive = alive_now
-                _sleep_with_control(job, interval_sec)
+            run_app_died_monitor(
+                package_name=package_name,
+                interval_sec=interval_sec,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(
+                    job,
+                    _adb_command(device_id, list(args)),
+                    timeout=timeout,
+                    log_stdout=False if args[:2] == ["shell", "pidof"] else True,
+                    log_stderr=False if args[:2] == ["shell", "pidof"] else True,
+                    allow_returncodes={0, 1} if args[:2] == ["shell", "pidof"] else None,
+                ),
+                hooks=hooks,
+                device_online_checker=lambda: _is_device_online(device_id, owner_ip=job.get("ip")),
+            )
 
         if action == "monkey_run":
             package_name = str(params.get("package", "")).strip()
@@ -1092,232 +831,50 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             _validate_positive_int(events, "events", 1, 2000000)
             _validate_positive_int(throttle, "throttle_ms", 0, 10000)
 
-            cmd = [
-                "shell",
-                "monkey",
-                "-p",
-                package_name,
-                "--throttle",
-                str(throttle),
-            ]
             if seed is not None:
                 _validate_positive_int(seed, "seed", 1, 2147483647)
-                cmd += ["-s", str(seed)]
-            cmd += [str(events)]
-            output = _run_cmd(job, _adb_command(device_id, cmd), timeout=max(300, events * max(throttle, 1) // 1000 + 120))
-            (out_dir / "monkey_output.txt").write_text(output, encoding="utf-8")
+            run_monkey(
+                package_name=package_name,
+                events=int(events),
+                throttle_ms=int(throttle),
+                seed=seed,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+            )
             return
 
         if action == "simpleperf_record":
+            from collie_package.utilities.simpleperf_pipeline import run_simpleperf_pipeline
+
             package_name = str(params.get("package", "")).strip()
             _validate_package(package_name)
             duration = params.get("duration_s", 10)
             _validate_positive_int(duration, "duration_s", 1, 600)
-
-            remote_data = f"/data/local/tmp/{job['id']}_simpleperf.data"
-            local_data = out_dir / "simpleperf.data"
-            local_report = out_dir / "simpleperf_report.txt"
-
-            _run_cmd(
-                job,
-                _adb_command(
-                    device_id,
-                    [
-                        "shell",
-                        "simpleperf",
-                        "record",
-                        "--app",
-                        package_name,
-                        "--duration",
-                        str(duration),
-                        "-o",
-                        remote_data,
-                    ],
-                ),
-                timeout=duration + 180,
-            )
-            _run_cmd(job, _adb_command(device_id, ["pull", remote_data, str(local_data)]), timeout=180)
-            report = _run_cmd(job, _adb_command(device_id, ["shell", "simpleperf", "report", "-i", remote_data]), timeout=180)
-            local_report.write_text(report, encoding="utf-8")
-            _run_cmd(job, _adb_command(device_id, ["shell", "rm", "-f", remote_data]), timeout=60)
+            try:
+                run_simpleperf_pipeline(
+                    package_name=package_name,
+                    duration_s=int(duration),
+                    out_dir=out_dir,
+                    adb_command_builder=lambda parts: _adb_command(device_id, list(parts)),
+                    run_cmd=lambda cmd, timeout: _run_cmd(job, cmd, timeout=timeout),
+                    progress=lambda p, m: _job_set_progress(job, p, m),
+                    log=lambda text: _append_log(job["stdout_path"], f"{text}\n"),
+                )
+            finally:
+                pass
             return
 
         if action == "cont_startup_stay":
-            runner = None
-            contract = None
-            for base in ("collie_package.rd_selftest", "rd_selftest", "web_app.rd_selftest"):
-                try:
-                    runner = importlib.import_module(f"{base}.cont_startup_stay_runner")
-                    contract = importlib.import_module(f"{base}.cont_startup_stay_contract")
-                    break
-                except Exception:
-                    continue
-            if runner is None or contract is None:
-                raise RuntimeError("无法导入 cont_startup_stay 模块")
+            config = build_cont_startup_config(device_id=device_id, params=params)
 
-            ContStartupStayConfig = getattr(contract, "ContStartupStayConfig")
-            CollectorsConfig = getattr(contract, "CollectorsConfig")
-            BugreportPolicy = getattr(contract, "BugreportPolicy")
-            AppListSelection = getattr(contract, "AppListSelection")
-            OutputDirStrategy = getattr(contract, "OutputDirStrategy")
+            hooks = _make_task_hooks(job)
 
-            collectors_raw = params.get("collectors")
-            if collectors_raw is None:
-                collectors_raw = {}
-            if not isinstance(collectors_raw, dict):
-                raise RuntimeError("collectors 必须是对象")
-
-            bugreport_raw = params.get("bugreport")
-            if bugreport_raw is None:
-                bugreport_raw = {}
-            if not isinstance(bugreport_raw, dict):
-                raise RuntimeError("bugreport 必须是对象")
-
-            app_list_raw = params.get("app_list")
-            if app_list_raw is None:
-                app_list_raw = {}
-            if not isinstance(app_list_raw, dict):
-                raise RuntimeError("app_list 必须是对象")
-
-            output_dir_raw = params.get("output_dir_strategy")
-            if output_dir_raw is None:
-                output_dir_raw = {}
-            if not isinstance(output_dir_raw, dict):
-                raise RuntimeError("output_dir_strategy 必须是对象")
-
-            mode = str(bugreport_raw.get("mode", "capture")).strip() or "capture"
-            if mode not in {"capture", "skip"}:
-                raise RuntimeError("bugreport.mode 只能为 capture/skip")
-
-            cli_skip_window_sec = int(bugreport_raw.get("cli_skip_window_sec", 10))
-            capture_timeout_sec = int(bugreport_raw.get("capture_timeout_sec", 1200))
-            _validate_positive_int(cli_skip_window_sec, "bugreport.cli_skip_window_sec", 1, 600)
-            _validate_positive_int(capture_timeout_sec, "bugreport.capture_timeout_sec", 30, 7200)
-
-            preset_name = app_list_raw.get("preset_name")
-            if preset_name is not None:
-                preset_name = str(preset_name).strip() or None
-
-            custom_json = app_list_raw.get("custom_json")
-            if custom_json is not None and not isinstance(custom_json, (dict, list, str)):
-                raise RuntimeError("app_list.custom_json 仅支持对象/数组/字符串")
-
-            dir_prefix = str(output_dir_raw.get("dir_prefix", "log_")).strip() or "log_"
-            timestamp_format = str(output_dir_raw.get("timestamp_format", "%d_%H_%M")).strip() or "%d_%H_%M"
-
-            config = ContStartupStayConfig(
-                device_id=device_id,
-                output_dir_strategy=OutputDirStrategy(
-                    dir_prefix=dir_prefix,
-                    timestamp_format=timestamp_format,
-                ),
-                app_list=AppListSelection(
-                    preset_name=preset_name,
-                    custom_json=custom_json,
-                ),
-                collectors=CollectorsConfig(
-                    logcat=_coerce_bool(collectors_raw.get("logcat"), "collectors.logcat", default=True),
-                    memcat=_coerce_bool(collectors_raw.get("memcat"), "collectors.memcat", default=False),
-                    meminfo=_coerce_bool(collectors_raw.get("meminfo"), "collectors.meminfo", default=True),
-                    vmstat=_coerce_bool(collectors_raw.get("vmstat"), "collectors.vmstat", default=True),
-                    greclaim_parm=_coerce_bool(
-                        collectors_raw.get("greclaim_parm"),
-                        "collectors.greclaim_parm",
-                        default=False,
-                    ),
-                    process_use_count=_coerce_bool(
-                        collectors_raw.get("process_use_count"),
-                        "collectors.process_use_count",
-                        default=False,
-                    ),
-                    oomadj=_coerce_bool(collectors_raw.get("oomadj"), "collectors.oomadj", default=False),
-                    ftrace=_coerce_bool(collectors_raw.get("ftrace"), "collectors.ftrace", default=False),
-                    ftrace_include_sched_switch=_coerce_bool(
-                        collectors_raw.get("ftrace_include_sched_switch"),
-                        "collectors.ftrace_include_sched_switch",
-                        default=False,
-                    ),
-                ),
-                run_pre_start=_coerce_bool(params.get("run_pre_start"), "run_pre_start", default=False),
-                bugreport=BugreportPolicy(
-                    mode=mode,
-                    cli_skip_window_sec=cli_skip_window_sec,
-                    capture_timeout_sec=capture_timeout_sec,
-                ),
+            run_cont_startup_stay(
+                config=config,
+                job_dir=out_dir,
+                adb_exec=adb_exec,
+                hooks=hooks,
             )
-
-            class _ControlledAdbExecutor:
-                def __init__(self, base_exec):
-                    self._base = base_exec
-
-                def build_argv(self, device_id, args):
-                    return self._base.build_argv(device_id=device_id, args=args)
-
-                def build_host_argv(self, args):
-                    return self._base.build_host_argv(args=args)
-
-                def run(self, device_id, args, timeout_sec=20.0):
-                    _wait_if_paused(job)
-                    _check_cancel(job)
-                    return self._base.run(device_id=device_id, args=args, timeout_sec=timeout_sec)
-
-                def run_host(self, args, timeout_sec=20.0):
-                    _wait_if_paused(job)
-                    _check_cancel(job)
-                    return self._base.run_host(args=args, timeout_sec=timeout_sec)
-
-            def _mark_manifest_cancelled():
-                manifest_path = out_dir / "artifacts_manifest.json"
-                if not manifest_path.exists():
-                    return
-                try:
-                    data = json.loads(manifest_path.read_text(encoding="utf-8", errors="ignore") or "{}")
-                except Exception:
-                    return
-                if not isinstance(data, dict):
-                    return
-                data["status"] = "completed"
-                data["result"] = "cancelled"
-                data["error"] = "cancelled"
-                data["traceback"] = None
-                manifest_path.write_text(
-                    json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-                    encoding="utf-8",
-                )
-
-            def _zip_artifacts(zip_name: str = "cont_startup_stay_artifacts.zip"):
-                zip_path = out_dir / zip_name
-                with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-                    for root, _, files in os.walk(out_dir):
-                        for fname in files:
-                            path = Path(root) / fname
-                            if path.resolve() == zip_path.resolve():
-                                continue
-                            rel = os.path.relpath(str(path), str(out_dir))
-                            zf.write(str(path), arcname=rel)
-                return zip_path
-
-            _job_set_progress(job, 1, "准备 cont_startup_stay 配置")
-            _wait_if_paused(job)
-            _check_cancel(job)
-
-            _job_set_progress(job, 5, "执行 cont_startup_stay")
-            controlled_exec = _ControlledAdbExecutor(adb_exec)
-            try:
-                out = runner.run_cont_startup_stay(job_dir=out_dir, config=config, adb_exec=controlled_exec)
-                _append_log(job["stdout_path"], f"\n[cont_startup_stay] {json.dumps(out, ensure_ascii=False)}\n")
-            except Exception:
-                if job.get("cancel_requested"):
-                    _mark_manifest_cancelled()
-                raise
-            finally:
-                try:
-                    _job_set_progress(job, 90, "打包 cont_startup_stay 产物")
-                    _ = _zip_artifacts()
-                except Exception as exc:  # noqa: BLE001
-                    _append_log(job["stderr_path"], f"\n[zip_error] {exc}\n")
-
-            _job_set_progress(job, 100, "cont_startup_stay 完成")
             return
 
         raise RuntimeError(f"不支持的 action: {action}")

@@ -2802,6 +2802,16 @@ python3 adb_agent.py \
                             <button class="task-btn view" onclick="runPerfSimpleperf()">运行 Simpleperf</button>
                         </div>
                     </div>
+                    <div class="card" style="margin-top:12px;">
+                        <div class="card-title">火焰图预览</div>
+                        <div class="muted">任务完成后将在下方内嵌展示 HTML 火焰图。</div>
+                        <div id="utilPerfPreviewEmpty" class="muted" style="margin-top:10px;">暂无预览</div>
+                        <iframe
+                            id="utilPerfPreviewFrame"
+                            title="Simpleperf Flamegraph Preview"
+                            style="display:none; width:100%; height:620px; border:1px solid #e4e7ec; border-radius:12px; background:#fff; margin-top:12px;"
+                        ></iframe>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2921,7 +2931,7 @@ python3 adb_agent.py \
                 const encodedFile = encodeURIComponent(fileName);
                 const downloadHref = `/api/utilities/download/${encodedJobId}/${encodedFile}`;
 
-                if (action === 'cont_startup_stay' && /\.html?$/i.test(fileName)) {
+                if ((action === 'cont_startup_stay' || action === 'simpleperf_record') && /\.html?$/i.test(fileName)) {
                     const preview = document.createElement('a');
                     preview.className = 'result-link primary';
                     preview.href = `/api/utilities/preview/${encodedJobId}/${encodedFile}`;
@@ -2939,6 +2949,32 @@ python3 adb_agent.py \
             });
         }
 
+        function _updateSimpleperfPreview(state) {
+            if (!utilPerfPreviewFrame || !utilPerfPreviewEmpty) return;
+            const action = String(state.action || '');
+            if (action !== 'simpleperf_record') {
+                utilPerfPreviewFrame.style.display = 'none';
+                utilPerfPreviewFrame.removeAttribute('src');
+                utilPerfPreviewEmpty.style.display = 'block';
+                return;
+            }
+
+            const files = Array.isArray(state.files) ? state.files : [];
+            const htmlFile = files.map((f) => String((f && f.name) || '')).find((name) => /\.html?$/i.test(name));
+            if (!htmlFile || !state.jobId) {
+                utilPerfPreviewFrame.style.display = 'none';
+                utilPerfPreviewFrame.removeAttribute('src');
+                utilPerfPreviewEmpty.style.display = 'block';
+                utilPerfPreviewEmpty.textContent = '暂无预览';
+                return;
+            }
+
+            const previewUrl = `/api/utilities/preview/${encodeURIComponent(state.jobId)}/${encodeURIComponent(htmlFile)}`;
+            utilPerfPreviewFrame.style.display = 'block';
+            utilPerfPreviewFrame.src = previewUrl;
+            utilPerfPreviewEmpty.style.display = 'none';
+        }
+
         function _renderUtilityPanelFromTabState(tabState) {
             const state = tabState || _createUtilityTabState();
             if (utilLog) {
@@ -2954,6 +2990,7 @@ python3 adb_agent.py \
                 utilStatus.textContent = state.statusText || '请选择一个工具并开始任务';
                 utilStatus.style.color = state.statusError ? '#b42318' : '#667085';
             }
+            _updateSimpleperfPreview(state);
             updatePauseResumeButtons(state.status || '', !!state.paused);
             updateMonitorPauseResumeButtons(state.status || '', !!state.paused, state.action || '');
             updateContPauseResumeButtons(state.status || '', !!state.paused, state.action || '');
@@ -3805,6 +3842,8 @@ python3 adb_agent.py \
         const utilPerfPackage = document.getElementById('utilPerfPackage');
         const utilPerfMonkeyEvents = document.getElementById('utilPerfMonkeyEvents');
         const utilPerfDuration = document.getElementById('utilPerfDuration');
+        const utilPerfPreviewFrame = document.getElementById('utilPerfPreviewFrame');
+        const utilPerfPreviewEmpty = document.getElementById('utilPerfPreviewEmpty');
         const utilMonitorPackageSelect = document.getElementById('utilMonitorPackageSelect');
         const utilMonitorCustomWrap = document.getElementById('utilMonitorCustomWrap');
         const utilMonitorPackageCustom = document.getElementById('utilMonitorPackageCustom');
@@ -5122,6 +5161,7 @@ python3 adb_agent.py \
             state.files = Array.isArray(files) ? files : [];
             state.jobId = jobId || state.jobId || '';
             _renderUtilityFileLinks(utilFiles, state.jobId, state.files, state.action || utilityJobAction || '');
+            _updateSimpleperfPreview(state);
         }
 
         async function _pollUtilityJob() {
