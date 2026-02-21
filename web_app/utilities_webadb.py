@@ -791,6 +791,10 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             _validate_package(package_name)
             duration = params.get("duration_s", 10)
             _validate_positive_int(duration, "duration_s", 1, 600)
+            _append_log(
+                job["stdout_path"],
+                f"[simpleperf] start package={package_name} duration={duration}\n",
+            )
             try:
                 run_simpleperf_pipeline(
                     package_name=package_name,

@@ -5562,6 +5562,16 @@ python3 adb_agent.py \
         function runPerfSimpleperf() {
             const pkg = (utilPerfPackage.value || '').trim();
             const duration = Number(utilPerfDuration.value || 10);
+            if (!pkg) {
+                setUtilityStatus('请先输入包名', true);
+                alert('请先输入包名');
+                return;
+            }
+            if (utilLogPanelBody && !utilLogPanelBody.classList.contains('open')) {
+                utilLogPanelBody.classList.add('open');
+                if (utilLogPanelToggleHint) utilLogPanelToggleHint.textContent = '收起';
+            }
+            _appendUtilityLog([`[simpleperf] 准备启动抓取: ${pkg} (${duration || 10}s)`]);
             runUtilityActionWithPayload('simpleperf_record', {
                 package: pkg,
                 duration_s: Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 10,

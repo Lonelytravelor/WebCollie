@@ -102,7 +102,7 @@ def run_simpleperf_pipeline(
     progress(25, '准备抓取（请在设备上复现问题）')
     log('已开始抓取，请在设备上复现需要分析的场景。')
 
-    progress(35, '录制 simpleperf 数据')
+    progress(35, '抓取中（simpleperf 录制进行中）')
     base_cmd = [
         'shell',
         remote_simpleperf,
@@ -130,7 +130,7 @@ def run_simpleperf_pipeline(
     if last_error:
         raise SimpleperfPipelineError(f'录制失败: {last_error}')
 
-    progress(55, '拉取 perf.data')
+    progress(55, '抓取完成，拉取 perf.data')
     run_cmd(adb_command_builder(['pull', remote_data, str(local_data)]), 180)
 
     progress(60, '抓取完成，开始解析')
