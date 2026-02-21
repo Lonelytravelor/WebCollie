@@ -2813,6 +2813,19 @@ python3 adb_agent.py \
                                 <input id="utilPerfPackageCustom" type="text" placeholder="com.example.app">
                             </div>
                             <div>
+                                <label class="app-list-label">抓取模式</label>
+                                <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        <input type="radio" name="utilPerfMode" value="auto" checked>
+                                        <span>自动（已启动优先）</span>
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px;">
+                                        <input type="radio" name="utilPerfMode" value="startup">
+                                        <span>启动抓取（等待启动）</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
                                 <label>Simpleperf 时长（秒）</label>
                                 <input id="utilPerfDuration" type="number" min="1" max="600" value="10">
                             </div>
@@ -3020,7 +3033,7 @@ python3 adb_agent.py \
 
             const normalizedMsg = String(msg || '');
             if (!_isSimpleperfLocalTimerActive()
-                && (normalizedMsg.includes('开始抓取') || normalizedMsg.includes('抓取中'))) {
+                && normalizedMsg.includes('抓取中')) {
                 _startSimpleperfLocalTimer();
             }
             if (normalizedMsg.includes('生成') || normalizedMsg.includes('完成')) {
@@ -5754,6 +5767,8 @@ python3 adb_agent.py \
         function runPerfSimpleperf() {
             const pkg = _resolvePerfPackage();
             const duration = Number(utilPerfDuration.value || 10);
+            const modeNode = document.querySelector('input[name="utilPerfMode"]:checked');
+            const mode = modeNode ? String(modeNode.value || 'auto') : 'auto';
             if (!pkg) {
                 setUtilityStatus('请先选择抓取应用', true);
                 alert('请先选择抓取应用');
@@ -5767,6 +5782,7 @@ python3 adb_agent.py \
             runUtilityActionWithPayload('simpleperf_record', {
                 package: pkg,
                 duration_s: Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 10,
+                mode,
             });
         }
 
