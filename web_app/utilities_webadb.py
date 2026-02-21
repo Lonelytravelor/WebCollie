@@ -796,8 +796,8 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 job["stdout_path"],
                 f"[simpleperf] start package={package_name} duration={duration}\n",
             )
-            mode = str(params.get("mode", "auto") or "auto").strip().lower()
-            _append_log(job["stdout_path"], f"[simpleperf] mode={mode}\n")
+            startup_mode = bool(params.get("startup_mode", False))
+            _append_log(job["stdout_path"], f"[simpleperf] startup_mode={startup_mode}\n")
             ndk_path = str(params.get("ndk_path") or _SIMPLEPERF_SETTINGS.get("ndk_path") or "").strip() or None
             if ndk_path:
                 _append_log(job["stdout_path"], f"[simpleperf] ndk_path={ndk_path}\n")
@@ -826,7 +826,7 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 run_simpleperf_pipeline(
                     package_name=package_name,
                     duration_s=int(duration),
-                    mode=mode,
+                    startup_mode=startup_mode,
                     out_dir=out_dir,
                     adb_command_builder=lambda parts: _adb_command(device_id, list(parts)),
                     run_cmd=lambda cmd, timeout: _run_cmd(job, cmd, timeout=timeout),

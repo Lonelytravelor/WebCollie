@@ -126,6 +126,7 @@ def _resolve_llvm_readobj() -> Optional[Path]:
 def run_simpleperf_pipeline(
     package_name: str,
     duration_s: int,
+    startup_mode: bool,
     out_dir: Path,
     adb_command_builder: Callable[[Sequence[str]], object],
     run_cmd: Callable[[object, int], str],
@@ -137,6 +138,7 @@ def run_simpleperf_pipeline(
         raise SimpleperfPipelineError('包名不能为空')
     if duration_s < 1:
         raise SimpleperfPipelineError('duration_s 不能小于 1')
+    startup_mode = bool(startup_mode)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     progress(5, '准备抓取前：校验 simpleperf 资源')
@@ -178,26 +180,28 @@ def run_simpleperf_pipeline(
         log('已开始抓取，请在设备上复现需要分析的场景。')
 
         progress(28, '准备抓取前：检查应用是否已启动')
-        start_wait = time.time()
         pid = ""
-        while time.time() - start_wait < 15:
-            try:
-                pid = (run_cmd(adb_command_builder(['shell', 'pidof', package_name]), 10) or "").strip()
-            except Exception:
-                pid = ""
-            if pid:
-                break
-            time.sleep(1.0)
-        if not pid:
-            raise SimpleperfPipelineError("未检测到应用进程，请先启动应用后再抓取")
+        try:
+            pid = (run_cmd(adb_command_builder(['shell', 'pidof', package_name]), 10) or "").strip()
+        except Exception:
+            pid = ""
 
-        progress(32, '开始抓取（simpleperf 录制中）')
+        use_app_mode = startup_mode or not pid
+        if use_app_mode:
+            progress(32, '等待应用启动（启动抓取）')
+        else:
+            progress(32, '开始抓取（simpleperf 录制中）')
+
         base_cmd = [
             'shell',
             remote_simpleperf,
             'record',
-            '--app',
-            package_name,
+        ]
+        if use_app_mode:
+            base_cmd += ['--app', package_name]
+        else:
+            base_cmd += ['--pid', pid]
+        base_cmd += [
             '--duration',
             str(duration_s),
             '-o',
@@ -209,11 +213,37 @@ def run_simpleperf_pipeline(
         ]
         last_error: Optional[Exception] = None
         stop_event = threading.Event()
+        launch_event = threading.Event()
+        launch_ts = {"value": 0.0}
+
+        if not use_app_mode:
+            launch_event.set()
+            launch_ts["value"] = time.time()
+
+        def _wait_for_launch():
+            if not use_app_mode:
+                return
+            while not stop_event.is_set():
+                try:
+                    current_pid = (run_cmd(adb_command_builder(['shell', 'pidof', package_name]), 10) or "").strip()
+                except Exception:
+                    current_pid = ""
+                if current_pid:
+                    launch_ts["value"] = time.time()
+                    launch_event.set()
+                    return
+                time.sleep(1.0)
+
+        launch_thread = threading.Thread(target=_wait_for_launch, daemon=True)
+        launch_thread.start()
 
         def _progress_ticker():
-            start_ts = time.time()
             while not stop_event.is_set():
-                elapsed = int(time.time() - start_ts)
+                if not launch_event.is_set():
+                    progress(32, '等待应用启动（启动抓取）')
+                    time.sleep(1.0)
+                    continue
+                elapsed = int(time.time() - launch_ts["value"])
                 remain = max(0, duration_s - elapsed)
                 if duration_s > 0:
                     ratio = min(1.0, elapsed / float(duration_s))
@@ -235,7 +265,9 @@ def run_simpleperf_pipeline(
                 last_error = exc
                 log(f'[warn] 录制失败，尝试备用方案: {exc}')
         stop_event.set()
+        launch_event.set()
         ticker.join(timeout=1.0)
+        launch_thread.join(timeout=1.0)
         if last_error:
             raise SimpleperfPipelineError(f'录制失败: {last_error}')
 
