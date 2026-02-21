@@ -8,10 +8,6 @@ storage:
   data_folder: "user_data"
   data_retention_days: 7
 
-utilities_webadb:
-  simpleperf:
-    ndk_path: "/media/mi/ssd/android-ndk-r26b"
-
 upload:
   allowed_extensions:
     - "txt"
@@ -44,6 +40,8 @@ llm:
     reasoning_content_enabled: null
 
 utilities_webadb:
+  simpleperf:
+    ndk_path: "/media/mi/ssd/android-ndk-r26b"
   monitor_max_detail_rows: 800
   auto_skip_game_packages:
     - "com.tencent.tmgp.pubgmhd"
