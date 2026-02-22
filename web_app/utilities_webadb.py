@@ -15,7 +15,13 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request, send_file
 
-from collie_package.config_loader import load_app_list_config, load_app_settings, resolve_app_config_path, to_flat_app_config
+from collie_package.config_loader import (
+    load_app_list_config,
+    load_app_settings,
+    load_rules_config,
+    resolve_app_config_path,
+    to_flat_app_config,
+)
 from collie_package.utilities.web_tasks import (
     TaskHooks,
     run_app_died_monitor,
@@ -23,6 +29,7 @@ from collie_package.utilities.web_tasks import (
     run_collect_device_meminfo,
     run_cont_startup_stay,
     run_device_info,
+    run_killinfo_line_parse,
     run_meminfo_live,
     run_meminfo_summary,
     run_package_version,
@@ -65,6 +72,8 @@ validate_package_name = getattr(_ADB_API, 'validate_package_name')
 _APP_SETTINGS = load_app_settings()
 _UTIL_SETTINGS = _APP_SETTINGS.get('utilities_webadb', {})
 _SIMPLEPERF_SETTINGS = _UTIL_SETTINGS.get('simpleperf', {}) if isinstance(_UTIL_SETTINGS, dict) else {}
+_RULES = load_rules_config()
+_PERSIST_CFG = _RULES.get('persist_props_switches', {}) if isinstance(_RULES, dict) else {}
 
 AUTO_SKIP_GAME_PACKAGES = set(
     _UTIL_SETTINGS.get(
@@ -73,6 +82,7 @@ AUTO_SKIP_GAME_PACKAGES = set(
     )
 )
 MONITOR_MAX_DETAIL_ROWS = int(_UTIL_SETTINGS.get('monitor_max_detail_rows', 800))
+NO_DEVICE_ACTIONS = {"killinfo_line_parse"}
 
 
 def get_adb_executor():
@@ -93,6 +103,8 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
     utilities_jobs_lock = threading.Lock()
     device_locks = {}
     device_locks_lock = threading.Lock()
+    persist_props_state = {}
+    persist_props_lock = threading.Lock()
     agent_registry = {}
     agent_registry_lock = threading.Lock()
     agent_token = os.getenv("ADB_AGENT_TOKEN", "").strip()
@@ -354,12 +366,63 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             }
         return adb_exec.build_argv(device_id=device_id, args=parts)
 
+    def _load_persist_props():
+        items = _PERSIST_CFG.get('items', []) if isinstance(_PERSIST_CFG, dict) else []
+        normalized = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            key = str(item.get('key', '')).strip()
+            if not key or not key.startswith('persist.'):
+                continue
+            normalized.append({
+                'key': key,
+                'label': str(item.get('label', '')).strip(),
+                'desc': str(item.get('desc', '')).strip(),
+                'on_value': str(item.get('on_value', '')).strip(),
+                'off_value': str(item.get('off_value', '')).strip(),
+                'need_reboot': bool(item.get('need_reboot', False)),
+            })
+        return normalized
+
+    def _getprop_values(device_id, keys, owner_ip=None):
+        if not keys:
+            return {}
+        cmd = " ; ".join([f"getprop {k}" for k in keys])
+        output = _run_cmd_quiet(
+            _adb_command(device_id, ["shell", "sh", "-c", cmd]),
+            timeout=20,
+            owner_ip=owner_ip,
+        )
+        values = {}
+        lines = (output or "").splitlines()
+        for idx, key in enumerate(keys):
+            values[key] = lines[idx].strip() if idx < len(lines) else ""
+        return values
+
     def _get_device_lock(device_id):
         key = device_id or "default"
         with device_locks_lock:
             if key not in device_locks:
                 device_locks[key] = threading.Lock()
             return device_locks[key]
+
+    def _get_persist_state(device_id):
+        key = device_id or "default"
+        with persist_props_lock:
+            return persist_props_state.setdefault(key, {})
+
+    def _set_persist_state(device_id, prop_key, value):
+        state = _get_persist_state(device_id)
+        state[prop_key] = {
+            "value": value,
+            "updated_at": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        }
+
+    def _clear_persist_state(device_id):
+        key = device_id or "default"
+        with persist_props_lock:
+            persist_props_state[key] = {}
 
     def _append_log(path, text):
         with open(path, "a", encoding="utf-8", errors="ignore") as f:
@@ -460,6 +523,56 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             _append_log(job["stdout_path"], out)
         if err and log_stderr:
             _append_log(job["stderr_path"], err)
+        if allow_returncodes is not None and process.returncode in set(allow_returncodes):
+            return out
+        if process.returncode != 0:
+            raise RuntimeError(f"命令失败({process.returncode}): {cmd_text}")
+        return out
+
+    def _run_cmd_quiet(cmd, timeout=120, allow_returncodes=None, owner_ip=None):
+        cmd_text = _cmd_to_text(cmd)
+        if isinstance(cmd, dict) and cmd.get("mode") == "agent":
+            agent_id = str(cmd.get("agent_id", "")).strip()
+            serial = str(cmd.get("serial", "")).strip()
+            args = [str(x) for x in (cmd.get("args") or [])]
+            if not agent_id or not serial:
+                raise RuntimeError("代理命令参数缺失")
+            payload = {
+                "device_id": serial,
+                "args": args,
+                "timeout_sec": int(max(proxy_timeout_floor, timeout)),
+            }
+            result = _call_agent_api(
+                agent_id=agent_id,
+                path="/adb/run",
+                payload=payload,
+                timeout_sec=float(timeout) + 8.0,
+                owner_ip=owner_ip,
+            )
+            out = str(result.get("stdout", "") or "")
+            rc_raw = result.get("returncode", 1)
+            try:
+                returncode = int(rc_raw)
+            except Exception:
+                returncode = 1
+            if allow_returncodes is not None and returncode in set(allow_returncodes):
+                return out
+            if returncode != 0:
+                raise RuntimeError(f"命令失败({returncode}): {cmd_text}")
+            return out
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            out, _ = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            raise RuntimeError(f"命令超时: {cmd_text}")
+
         if allow_returncodes is not None and process.returncode in set(allow_returncodes):
             return out
         if process.returncode != 0:
@@ -618,6 +731,16 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 device_id=device_id,
                 out_dir=out_dir,
                 adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+            )
+            return
+
+        if action == "killinfo_line_parse":
+            line_text = str(params.get("line", "")).strip()
+            hooks = _make_task_hooks(job)
+            run_killinfo_line_parse(
+                line_text=line_text,
+                out_dir=out_dir,
                 hooks=hooks,
             )
             return
@@ -996,6 +1119,75 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
         except Exception as exc:
             return jsonify({"error": str(exc)}), 500
 
+    @bp.route("/api/utilities/persist-props")
+    def api_utilities_persist_props():
+        try:
+            req_device = str(request.args.get("device_id", "")).strip() or None
+            items = _load_persist_props()
+            keys = [item["key"] for item in items]
+            values = {}
+            state = {}
+            if req_device:
+                device_id = _resolve_device(req_device, owner_ip=get_client_ip())
+                values = _getprop_values(device_id, keys, owner_ip=get_client_ip())
+                state = _get_persist_state(device_id)
+            result = []
+            for item in items:
+                key = item["key"]
+                current = values.get(key, "")
+                result.append({
+                    **item,
+                    "current_value": current,
+                    "last_set": state.get(key, {}).get("value", ""),
+                })
+            return jsonify({"items": result})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    @bp.route("/api/utilities/persist-props/set", methods=["POST"])
+    def api_utilities_persist_props_set():
+        data = request.json or {}
+        req_device = str(data.get("device_id", "")).strip() or None
+        key = str(data.get("key", "")).strip()
+        value = str(data.get("value", "")).strip()
+        if not key or not key.startswith("persist."):
+            return jsonify({"error": "key 无效"}), 400
+        try:
+            device_id = _resolve_device(req_device, owner_ip=get_client_ip())
+            with _get_device_lock(device_id):
+                _run_cmd_quiet(
+                    _adb_command(device_id, ["shell", "setprop", key, value]),
+                    timeout=20,
+                    owner_ip=get_client_ip(),
+                )
+            _set_persist_state(device_id, key, value)
+            return jsonify({"status": "ok"})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @bp.route("/api/utilities/persist-props/clear", methods=["POST"])
+    def api_utilities_persist_props_clear():
+        data = request.json or {}
+        req_device = str(data.get("device_id", "")).strip() or None
+        try:
+            device_id = _resolve_device(req_device, owner_ip=get_client_ip())
+            items = _load_persist_props()
+            if not items:
+                return jsonify({"error": "未配置任何开关"}), 400
+            with _get_device_lock(device_id):
+                for item in items:
+                    key = item["key"]
+                    off_value = str(item.get("off_value", "")).strip()
+                    _run_cmd_quiet(
+                        _adb_command(device_id, ["shell", "setprop", key, off_value]),
+                        timeout=20,
+                        owner_ip=get_client_ip(),
+                    )
+            _clear_persist_state(device_id)
+            return jsonify({"status": "ok"})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+
     @bp.route("/api/utilities/presets/<path:preset_name>")
     def api_utilities_preset_detail(preset_name):
         try:
@@ -1031,10 +1223,13 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
         if not isinstance(params, dict):
             return jsonify({"error": "params 必须是对象"}), 400
 
-        try:
-            device_id = _resolve_device(req_device, owner_ip=get_client_ip())
-        except Exception as exc:
-            return jsonify({"error": str(exc)}), 400
+        if action in NO_DEVICE_ACTIONS:
+            device_id = None
+        else:
+            try:
+                device_id = _resolve_device(req_device, owner_ip=get_client_ip())
+            except Exception as exc:
+                return jsonify({"error": str(exc)}), 400
 
         client_ip = get_client_ip()
         user_folder = get_user_folder(client_ip)

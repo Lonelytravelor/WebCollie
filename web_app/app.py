@@ -57,6 +57,7 @@ MAX_CONTENT_LENGTH = int(
 DATA_RETENTION_DAYS = int(
     APP_SETTINGS.get('storage', {}).get('data_retention_days', 7)
 )
+DOCS_DIR = project_root / 'docs'
 
 tasks = {}
 tasks_lock = threading.Lock()
@@ -118,6 +119,62 @@ def get_user_folder(ip):
     (user_folder / 'uploads').mkdir(exist_ok=True)
     (user_folder / 'results').mkdir(exist_ok=True)
     return user_folder
+
+
+def get_user_rd_mem_compare_folder(ip):
+    user_folder = get_user_folder(ip)
+    mem_compare_folder = user_folder / 'rd_mem_compare'
+    mem_compare_folder.mkdir(exist_ok=True)
+    return mem_compare_folder
+
+
+def _allowed_mem_design_file(filename: str) -> bool:
+    name = str(filename or '')
+    return '.' in name and name.rsplit('.', 1)[1].lower() == 'txt'
+
+
+def _build_mem_design_compare_report(file_a: str, file_b: str) -> str:
+    from collie_package.utilities import compare_android_mem_design as cad
+
+    lines_a = cad.load_file(file_a)
+    lines_b = cad.load_file(file_b)
+
+    props_a = cad.parse_properties(lines_a)
+    props_b = cad.parse_properties(lines_b)
+
+    meminfo_a = cad.parse_meminfo_section(cad.extract_section(lines_a, 'proc/meminfo'))
+    meminfo_b = cad.parse_meminfo_section(cad.extract_section(lines_b, 'proc/meminfo'))
+
+    zoneinfo_a = cad.parse_zoneinfo_section(cad.extract_section(lines_a, 'proc/zoneinfo'))
+    zoneinfo_b = cad.parse_zoneinfo_section(cad.extract_section(lines_b, 'proc/zoneinfo'))
+
+    lsmod_a = cad.parse_lsmod_section(cad.extract_section(lines_a, 'lsmod'))
+    lsmod_b = cad.parse_lsmod_section(cad.extract_section(lines_b, 'lsmod'))
+
+    vm_sysctl_a = cad.parse_vm_sysctl_section(cad.extract_section(lines_a, 'vm_sysctl'))
+    vm_sysctl_b = cad.parse_vm_sysctl_section(cad.extract_section(lines_b, 'vm_sysctl'))
+
+    report_parts: List[str] = []
+    report_parts.append(
+        cad.generate_summary(
+            props_a,
+            props_b,
+            zoneinfo_a,
+            zoneinfo_b,
+            meminfo_a,
+            meminfo_b,
+        )
+    )
+    report_parts.append("====== 对比结果：内存配置 / 软件设计差异（表格版） ======\n")
+    report_parts.append(cad.compare_zone_sizes(zoneinfo_a, zoneinfo_b))
+    report_parts.append(cad.compare_zone_watermarks(zoneinfo_a, zoneinfo_b))
+    report_parts.append(cad.compare_meminfo(meminfo_a, meminfo_b))
+    report_parts.append(cad.compare_vm_sysctl(vm_sysctl_a, vm_sysctl_b))
+    report_parts.append(cad.compare_important_modules(lsmod_a, lsmod_b))
+    report_parts.append(cad.compare_properties(props_a, props_b))
+    report_parts.append(cad.analyze_hugepages(meminfo_a, meminfo_b))
+
+    return "\n".join(report_parts)
 
 def get_user_uploads_folder(ip):
     """获取用户上传目录"""
@@ -678,6 +735,66 @@ def index():
     return render_template('index.html', presets=presets)
 
 
+def _safe_resolve_doc(path_text: str) -> Optional[Path]:
+    """Resolve docs path safely under DOCS_DIR."""
+    if not path_text or not path_text.endswith('.md'):
+        return None
+    candidate = (DOCS_DIR / path_text).resolve()
+    if DOCS_DIR not in candidate.parents and candidate != DOCS_DIR:
+        return None
+    if not candidate.exists() or not candidate.is_file():
+        return None
+    return candidate
+
+
+@bp.route('/api/docs')
+def api_docs_list():
+    docs = []
+    if not DOCS_DIR.exists():
+        return jsonify({'docs': docs})
+
+    for path in sorted(DOCS_DIR.rglob('*.md')):
+        rel = path.relative_to(DOCS_DIR).as_posix()
+        preview_lines = []
+        title = path.stem
+        line_count = 0
+        try:
+            content = path.read_text(encoding='utf-8', errors='replace')
+            lines = content.replace('\r\n', '\n').split('\n')
+            line_count = len(lines)
+            preview_lines = lines[:6]
+            for line in preview_lines:
+                if line.startswith('# '):
+                    title = line.lstrip('# ').strip() or title
+                    break
+        except Exception:
+            preview_lines = []
+        docs.append({
+            'path': rel,
+            'name': title,
+            'preview_lines': preview_lines,
+            'line_count': line_count,
+        })
+
+    return jsonify({'docs': docs})
+
+
+@bp.route('/api/docs/<path:doc_path>')
+def api_docs_content(doc_path: str):
+    doc_file = _safe_resolve_doc(doc_path)
+    if not doc_file:
+        return jsonify({'error': '文档不存在'}), 404
+    try:
+        content = doc_file.read_text(encoding='utf-8', errors='replace')
+    except Exception:
+        return jsonify({'error': '读取文档失败'}), 500
+    return jsonify({
+        'path': doc_path,
+        'name': doc_file.stem,
+        'content': content,
+    })
+
+
 @bp.route('/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -724,6 +841,75 @@ def upload_file():
         'filename': filename,
         'status': 'uploaded'
     })
+
+
+@bp.route('/api/rd/mem-design/compare', methods=['POST'])
+def rd_mem_design_compare():
+    if 'file_a' not in request.files or 'file_b' not in request.files:
+        return jsonify({'error': '请上传两份对比文件'}), 400
+
+    file_a = request.files['file_a']
+    file_b = request.files['file_b']
+    if file_a.filename == '' or file_b.filename == '':
+        return jsonify({'error': '文件名不能为空'}), 400
+
+    if not _allowed_mem_design_file(file_a.filename) or not _allowed_mem_design_file(file_b.filename):
+        return jsonify({'error': '仅支持 .txt 文件'}), 400
+
+    client_ip = get_client_ip()
+    compare_root = get_user_rd_mem_compare_folder(client_ip)
+
+    job_id = str(uuid.uuid4())[:8]
+    job_dir = (compare_root / job_id).resolve()
+    job_dir.mkdir(exist_ok=True)
+
+    filename_a = secure_filename(file_a.filename or 'device_a.txt')
+    filename_b = secure_filename(file_b.filename or 'device_b.txt')
+    path_a = job_dir / f"A_{filename_a}"
+    path_b = job_dir / f"B_{filename_b}"
+    file_a.save(str(path_a))
+    file_b.save(str(path_b))
+
+    try:
+        report_text = _build_mem_design_compare_report(str(path_a), str(path_b))
+    except Exception as exc:
+        return jsonify({'error': f'对比失败: {exc}'}), 400
+
+    base_a = os.path.splitext(filename_a)[0]
+    base_b = os.path.splitext(filename_b)[0]
+    output_name = f"mem_design_diff_{base_a}_vs_{base_b}.txt"
+    output_path = job_dir / output_name
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(report_text)
+
+    return jsonify({
+        'job_id': job_id,
+        'file_a': filename_a,
+        'file_b': filename_b,
+        'report_file': output_name,
+        'report_text': report_text,
+    })
+
+
+@bp.route('/api/rd/mem-design/download/<job_id>/<path:filename>')
+def rd_mem_design_download(job_id, filename):
+    client_ip = get_client_ip()
+    compare_root = get_user_rd_mem_compare_folder(client_ip).resolve()
+    job_dir = (compare_root / str(job_id)).resolve()
+    if not _is_within_dir(compare_root, job_dir):
+        return jsonify({'error': '非法路径'}), 400
+    file_path = (job_dir / str(filename)).resolve()
+    if not _is_within_dir(job_dir, file_path):
+        return jsonify({'error': '非法路径'}), 400
+    if not file_path.exists():
+        return jsonify({'error': '文件不存在'}), 404
+    mimetype, _ = mimetypes.guess_type(str(file_path))
+    return send_file(
+        str(file_path),
+        mimetype=mimetype or 'text/plain',
+        as_attachment=True,
+        download_name=file_path.name,
+    )
 
 
 @bp.route('/api/kill-focus/candidates', methods=['POST'])

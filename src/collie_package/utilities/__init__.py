@@ -11,6 +11,7 @@ _MODULES = {
     'collect_device_meminfo',
     'compare_android_mem_design',
     'complie_and_prepare_app',
+    'killinfo_line_parser',
     'meminfo_summary',
     'simpleperf',
 }

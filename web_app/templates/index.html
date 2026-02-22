@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Collie Bugreport 智能分析平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.32.2/tocbot.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Press+Start+2P&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
         :root {
             --font-body: 'IBM Plex Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
             --font-display: 'Fraunces', 'IBM Plex Sans', serif;
             --font-pixel: 'Press Start 2P', 'IBM Plex Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', 'IBM Plex Sans', monospace;
             --bg-0: #0b1220;
             --bg-1: #0f1b2d;
             --bg-2: #10263a;
@@ -193,6 +195,134 @@
             margin: 18px 0 26px;
         }
 
+        .home-guide {
+            margin: 18px 0 26px;
+            padding: 18px 20px;
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: #f8fafc;
+        }
+
+        .home-guide.hidden {
+            display: none;
+        }
+
+        .guide-title {
+            font-size: 1.05em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .guide-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .guide-step {
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .guide-step h4 {
+            font-size: 0.92em;
+            margin-bottom: 6px;
+        }
+
+        .guide-step p {
+            font-size: 0.85em;
+            color: rgba(226, 232, 240, 0.75);
+            line-height: 1.5;
+        }
+
+        .guide-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .guide-btn {
+            border-radius: 999px;
+            padding: 6px 12px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: transparent;
+            color: rgba(226, 232, 240, 0.9);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+
+        .guide-btn.primary {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: transparent;
+        }
+
+        .home-summary {
+            margin: 12px 0 26px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .summary-card {
+            border-radius: 16px;
+            padding: 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: #f8fafc;
+        }
+
+        .summary-title {
+            font-size: 0.95em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .summary-metrics {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .summary-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 90px;
+        }
+
+        .summary-metric span {
+            font-size: 0.75em;
+            color: rgba(226, 232, 240, 0.7);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .summary-metric strong {
+            font-size: 1.1em;
+        }
+
+        .summary-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            height: 72px;
+        }
+
+        .summary-bar {
+            flex: 1;
+            border-radius: 8px 8px 4px 4px;
+            background: linear-gradient(180deg, rgba(18, 164, 255, 0.9), rgba(39, 199, 161, 0.9));
+            min-height: 6px;
+            transition: height 0.3s ease;
+        }
+
         .home-cta {
             border: 1px solid rgba(148, 163, 184, 0.35);
             border-radius: 16px;
@@ -313,6 +443,34 @@
             position: absolute;
             inset: 0;
             background: linear-gradient(120deg, rgba(15, 23, 42, 0.2), transparent 60%);
+        }
+
+        .theme-preview-shell {
+            background: linear-gradient(180deg, #0a0f0d 0%, #0f1a16 100%);
+        }
+
+        .theme-preview-shell::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.25), transparent 45%),
+                radial-gradient(circle at 80% 60%, rgba(20, 184, 166, 0.18), transparent 50%),
+                linear-gradient(180deg, rgba(34, 197, 94, 0.08), transparent 55%);
+        }
+
+        .shell-lines {
+            position: absolute;
+            inset: 14px 16px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            line-height: 1.5;
+            color: rgba(74, 222, 128, 0.8);
+            letter-spacing: 0.02em;
+        }
+
+        .shell-lines span {
+            display: block;
         }
 
         .theme-preview-minecraft {
@@ -943,6 +1101,271 @@
             overflow-y: auto;
         }
 
+        .task-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .task-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .task-filter-input,
+        .task-filter-select,
+        .task-filter-date {
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #d9e1ef;
+            background: #ffffff;
+            font-size: 0.9em;
+            min-width: 140px;
+        }
+
+        .task-filter-input {
+            min-width: 220px;
+        }
+
+        .task-batch-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .task-batch-count {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .error-diagnostics {
+            margin-top: 18px;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #f2c0c0;
+            background: #fff1f2;
+            color: #7f1d1d;
+        }
+
+        .error-diagnostics h4 {
+            margin-bottom: 8px;
+        }
+
+        .error-diagnostics ul {
+            padding-left: 18px;
+            margin: 8px 0 0;
+        }
+
+        .ai-summary-card {
+            margin-bottom: 16px;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid #d5deef;
+            background: #f0f7ff;
+        }
+
+        .ai-summary-card h4 {
+            margin-bottom: 8px;
+            color: #1f3b64;
+        }
+
+        .ai-summary-card ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .comparison-metrics {
+            margin-bottom: 16px;
+            border-radius: 10px;
+            border: 1px solid #d5deef;
+            overflow: hidden;
+        }
+
+        .comparison-metrics table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        .comparison-metrics thead {
+            background: #eef4ff;
+        }
+
+        .comparison-metrics th,
+        .comparison-metrics td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5edf7;
+            text-align: left;
+        }
+
+        .comparison-metrics td.diff {
+            font-weight: 600;
+            color: #0f766e;
+        }
+
+        .doc-upload {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px dashed #d0d8e6;
+            background: #f8fafc;
+            margin-bottom: 16px;
+        }
+
+        .doc-layout {
+            display: grid;
+            grid-template-columns: 1fr minmax(200px, 240px);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .doc-list-view {
+            display: block;
+        }
+
+        .doc-detail-view {
+            display: none;
+        }
+
+        .doc-detail-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .doc-detail-meta h3 {
+            margin-bottom: 4px;
+        }
+
+        #refDocsTab .doc-list {
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            max-height: 620px;
+            overflow-y: auto;
+        }
+
+        #refDocsTab .doc-row {
+            display: grid;
+            grid-template-columns: 44px minmax(200px, 1.6fr) minmax(180px, 1fr) 90px;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 4px;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+            cursor: pointer;
+            transition: background 0.2s ease;
+            color: #0f172a;
+        }
+
+        #refDocsTab .doc-row:last-child {
+            border-bottom: none;
+        }
+
+        #refDocsTab .doc-row:hover {
+            background: rgba(15, 23, 42, 0.04);
+        }
+
+        #refDocsTab .doc-row.active {
+            background: rgba(47, 91, 242, 0.08);
+        }
+
+        #refDocsTab .doc-title {
+            font-weight: 700;
+            font-size: 1em;
+            color: #0f172a;
+        }
+
+        #refDocsTab .doc-path {
+            font-family: var(--font-mono);
+            font-size: 0.78em;
+            color: #64748b;
+        }
+
+        #refDocsTab .doc-lines {
+            text-align: right;
+            font-size: 0.85em;
+            color: #0f172a;
+        }
+
+        .doc-reader {
+            border: 1px solid #e3e9f5;
+            border-radius: 12px;
+            padding: 20px;
+            background: #ffffff;
+            min-height: 360px;
+        }
+
+        .doc-reader-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .doc-toc {
+            border: 1px solid #e3e9f5;
+            border-radius: 12px;
+            padding: 12px;
+            background: #f9fbff;
+            position: sticky;
+            top: 90px;
+            max-height: 620px;
+            overflow-y: auto;
+        }
+
+        .doc-toc .toc-link {
+            color: #2f5bf2;
+        }
+
+        .doc-toc .is-active-link {
+            color: #0f172a;
+            font-weight: 700;
+        }
+
+        .doc-toc h4 {
+            margin-bottom: 8px;
+        }
+
+        .doc-toc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.85em;
+        }
+
+        .doc-toc-list a {
+            color: #2f5bf2;
+            text-decoration: none;
+        }
+
+        .doc-toc-list a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 900px) {
+            .doc-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .doc-toc {
+                position: relative;
+                top: 0;
+            }
+        }
+
         .task-item {
             display: flex;
             justify-content: space-between;
@@ -1180,26 +1603,11 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            min-width: 220px;
-        }
-
-        .brand-mark {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background-color: #0f1b3d;
-            background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='18' fill='%230f1b3d'/%3E%3Cg%3E%3Crect x='10' y='12' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='22' y='12' width='12' height='12' fill='%2399b6ff'/%3E%3Crect x='34' y='12' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='46' y='12' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='58' y='12' width='12' height='12' fill='%2399b6ff'/%3E%3Crect x='70' y='12' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='16' y='24' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='28' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='40' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='52' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='64' y='24' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='22' y='36' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='34' y='36' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='46' y='36' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='58' y='36' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='28' y='48' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='40' y='48' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='52' y='48' width='12' height='12' fill='%230f1b3d'/%3E%3Crect x='34' y='60' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='46' y='60' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='58' y='60' width='12' height='12' fill='%23ffffff'/%3E%3Crect x='40' y='72' width='12' height='12' fill='%2399b6ff'/%3E%3Crect x='52' y='72' width='12' height='12' fill='%2399b6ff'/%3E%3C/g%3E%3Ccircle cx='42' cy='44' r='2.5' fill='%230f1b3d'/%3E%3Ccircle cx='56' cy='44' r='2.5' fill='%230f1b3d'/%3E%3Crect x='45' y='50' width='6' height='4' rx='2' fill='%230f1b3d'/%3E%3C/svg%3E");
-            background-size: cover;
-            background-position: center;
-            display: grid;
-            place-items: center;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(15, 27, 61, 0.35);
+            min-width: 160px;
         }
 
         .brand-title {
-            font-size: 1.05em;
+            font-size: 1.12em;
             font-weight: 800;
             color: #eef2ff;
             line-height: 1.2;
@@ -1372,6 +1780,319 @@
         body[data-theme="minecraft"] .upload-area:hover {
             background: #f4ead7;
             border-color: #8d6e63;
+        }
+
+        body[data-theme="shell"] {
+            --bg-0: #050805;
+            --bg-1: #0a120f;
+            --bg-2: #0f1a16;
+            --card: #0b1210;
+            --card-2: #0f1613;
+            --ink-1: #d1fae5;
+            --ink-2: #a7f3d0;
+            --muted: #6ee7b7;
+            --brand-1: #34d399;
+            --brand-2: #22c55e;
+            --brand-3: #14b8a6;
+            --accent: #fbbf24;
+            --border: #1f2b25;
+            --shadow-lg: 0 20px 50px rgba(2, 8, 6, 0.65);
+            --shadow-md: 0 12px 28px rgba(3, 10, 7, 0.45);
+            --page-bg:
+                radial-gradient(900px 500px at 20% 0%, rgba(34, 197, 94, 0.12), transparent 60%),
+                radial-gradient(700px 500px at 90% 10%, rgba(20, 184, 166, 0.12), transparent 65%),
+                linear-gradient(160deg, #050805 0%, #0a120f 50%, #0f1a16 100%);
+            --font-display: var(--font-mono);
+        }
+
+        body[data-theme="shell"] .brand-title {
+            font-family: var(--font-mono);
+            color: #e2e8f0;
+            letter-spacing: 0.08em;
+            font-size: 1.1em;
+            position: relative;
+            text-transform: uppercase;
+        }
+
+        body[data-theme="shell"] .brand-title::before,
+        body[data-theme="shell"] .brand-title::after {
+            content: attr(data-shell-title);
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: #0f1412;
+            text-shadow:
+                1px 1px 0 #1b2923,
+                2px 2px 0 #1b2923,
+                3px 3px 0 #1b2923;
+            z-index: -1;
+        }
+
+        body[data-theme="shell"] .brand-title::after {
+            color: #ffffff;
+            text-shadow:
+                -1px -1px 0 rgba(255, 255, 255, 0.35),
+                0 0 18px rgba(74, 222, 128, 0.35);
+            opacity: 0.95;
+        }
+
+        body[data-theme="shell"] .tab-btn {
+            color: rgba(187, 247, 208, 0.72);
+        }
+
+        body[data-theme="shell"] .tab-btn.active {
+            color: #d1fae5;
+            border-bottom-color: #34d399;
+        }
+
+        body[data-theme="shell"] .main-card,
+        body[data-theme="shell"] .scene-card,
+        body[data-theme="shell"] .home-cta,
+        body[data-theme="shell"] .home-highlight-item,
+        body[data-theme="shell"] .home-list-item,
+        body[data-theme="shell"] .utilities-strip,
+        body[data-theme="shell"] .task-item,
+        body[data-theme="shell"] .card,
+        body[data-theme="shell"] .summary-card,
+        body[data-theme="shell"] .home-guide {
+            border-radius: 8px;
+            border: 1px solid #1f2b25;
+            background: rgba(8, 14, 12, 0.85);
+            box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.12);
+        }
+
+        body[data-theme="shell"] .main-card {
+            background: #0f1613 !important;
+            border-color: #1f2b25 !important;
+            color: #d1fae5;
+        }
+
+        body[data-theme="shell"] .main-card * {
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] .upload-area {
+            background: #0b1410;
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] .theme-chip.active {
+            background: #0f1a16;
+            color: #bbf7d0;
+            border-color: #34d399;
+        }
+
+        body[data-theme="shell"] .section-title,
+        body[data-theme="shell"] .section-title span,
+        body[data-theme="shell"] .card-title,
+        body[data-theme="shell"] .device-strip-title,
+        body[data-theme="shell"] .preset-preview-title {
+            color: #d1fae5;
+        }
+
+        body[data-theme="shell"] .header h1,
+        body[data-theme="shell"] .home-hero h1,
+        body[data-theme="shell"] .main-card h2,
+        body[data-theme="shell"] .main-card h3,
+        body[data-theme="shell"] .main-card h4 {
+            color: #e2fbea;
+        }
+
+        body[data-theme="shell"] .section-intro,
+        body[data-theme="shell"] .muted,
+        body[data-theme="shell"] .home-hero p,
+        body[data-theme="shell"] .header p {
+            color: rgba(167, 243, 208, 0.75);
+        }
+
+        body[data-theme="shell"] .subtab-btn {
+            background: #0b1410;
+            color: #a7f3d0;
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] .subtab-btn.active {
+            color: #0b1410;
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+            border-color: transparent;
+        }
+
+        body[data-theme="shell"] .tab-panel,
+        body[data-theme="shell"] .tab-panel.active {
+            color: #d1fae5;
+        }
+
+        body[data-theme="shell"] .task-btn,
+        body[data-theme="shell"] .analyze-btn,
+        body[data-theme="shell"] .result-link {
+            background: #0b1410;
+            color: #bbf7d0;
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] .task-btn.view,
+        body[data-theme="shell"] .analyze-btn,
+        body[data-theme="shell"] .result-link.primary {
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+            color: #0b1410;
+            border-color: transparent;
+        }
+
+        body[data-theme="shell"] input,
+        body[data-theme="shell"] select,
+        body[data-theme="shell"] textarea {
+            background: #0b1410;
+            color: #d1fae5;
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] input::placeholder,
+        body[data-theme="shell"] textarea::placeholder {
+            color: rgba(167, 243, 208, 0.6);
+        }
+
+        body[data-theme="shell"] .utilities-strip {
+            background: linear-gradient(120deg, rgba(15, 23, 20, 0.85), rgba(10, 18, 15, 0.95));
+        }
+
+        body[data-theme="shell"] .app-list-select-wrap,
+        body[data-theme="shell"] .app-list-select,
+        body[data-theme="shell"] .utilities-log,
+        body[data-theme="shell"] .preset-preview-log,
+        body[data-theme="shell"] .preset-preview-card,
+        body[data-theme="shell"] .task-list,
+        body[data-theme="shell"] .task-item {
+            background: #0b1410;
+            color: #d1fae5;
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] .task-filter-input,
+        body[data-theme="shell"] .task-filter-select,
+        body[data-theme="shell"] .task-filter-date {
+            background: #0b1410;
+            color: #d1fae5;
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] .error-diagnostics {
+            background: #1b0f12;
+            border-color: #3f1a20;
+            color: #fca5a5;
+        }
+
+        body[data-theme="shell"] .ai-summary-card,
+        body[data-theme="shell"] .comparison-metrics {
+            background: #0b1410;
+            border-color: #1f2b25;
+        }
+
+        body[data-theme="shell"] .comparison-metrics thead {
+            background: #0f1a16;
+        }
+
+        body[data-theme="shell"] .doc-upload,
+        body[data-theme="shell"] .doc-list,
+        body[data-theme="shell"] .doc-reader,
+        body[data-theme="shell"] .doc-toc {
+            background: #0b1410;
+            border-color: #1f2b25;
+            color: #d1fae5;
+        }
+
+        body[data-theme="shell"] #refDocsTab .doc-row {
+            border-color: rgba(34, 197, 94, 0.15);
+            background: transparent;
+            color: #d1fae5;
+        }
+
+        body[data-theme="shell"] #refDocsTab .doc-row:hover {
+            background: rgba(15, 23, 20, 0.4);
+        }
+
+        body[data-theme="shell"] #refDocsTab .doc-row.active {
+            background: rgba(34, 197, 94, 0.12);
+        }
+
+        body[data-theme="shell"] #refDocsTab .doc-title {
+            color: #d1fae5;
+        }
+
+        body[data-theme="shell"] #refDocsTab .doc-path {
+            color: rgba(167, 243, 208, 0.7);
+        }
+
+        body[data-theme="shell"] #refDocsTab .doc-lines {
+            color: #d1fae5;
+        }
+
+        body[data-theme="shell"] .doc-toc-list a {
+            color: #34d399;
+        }
+
+        body[data-theme="shell"] .progress-bar {
+            background: #0b1410;
+        }
+
+        body[data-theme="shell"] .progress-fill {
+            background: linear-gradient(90deg, #34d399 0%, #14b8a6 100%);
+        }
+
+        body[data-theme="shell"] .scene-card.selected {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: #34d399;
+        }
+
+        body[data-theme="shell"] .result-link:hover,
+        body[data-theme="shell"] .task-btn:hover,
+        body[data-theme="shell"] .analyze-btn:hover:not(:disabled) {
+            box-shadow: 0 10px 22px rgba(20, 184, 166, 0.25);
+            transform: translateY(-1px);
+        }
+
+        body[data-theme="shell"]::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(transparent 95%, rgba(34, 197, 94, 0.06) 96%),
+                linear-gradient(90deg, transparent 95%, rgba(20, 184, 166, 0.04) 96%);
+            background-size: 22px 22px;
+            opacity: 0.4;
+            z-index: 0;
+        }
+
+        body[data-theme="minecraft"] .home-guide,
+        body[data-theme="minecraft"] .summary-card {
+            background: rgba(58, 42, 26, 0.7);
+            border-color: rgba(217, 205, 181, 0.5);
+        }
+
+        body[data-theme="minecraft"] .guide-step,
+        body[data-theme="minecraft"] .summary-bar {
+            background: linear-gradient(180deg, #7cc55a 0%, #5a3d2b 100%);
+        }
+
+        body[data-theme="minecraft"] .summary-bar {
+            box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        body[data-theme="minecraft"]::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 10px),
+                repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 10px);
+            opacity: 0.35;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
         }
 
         .utilities-grid {
@@ -1574,6 +2295,82 @@
             max-height: 260px;
             overflow: auto;
             white-space: pre-wrap;
+        }
+
+        .utilities-result-error {
+            border-color: #f5b7b1 !important;
+            background: #fff5f5 !important;
+            color: #b42318 !important;
+        }
+
+        .prop-card {
+            border: 1px solid #d5deef;
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .prop-card + .prop-card {
+            margin-top: 10px;
+        }
+
+        .prop-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .prop-key {
+            font-family: Consolas, Monaco, 'Courier New', monospace;
+            font-size: 0.8em;
+            color: #1f2a44;
+        }
+
+        .prop-desc {
+            color: #667085;
+            font-size: 0.82em;
+        }
+
+        .prop-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .prop-badge {
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 0.78em;
+            font-weight: 700;
+            background: #e6f4ff;
+            color: #1f2a44;
+        }
+
+        .prop-badge.warn {
+            background: #fff4e5;
+            color: #9a3412;
+        }
+
+        .drop-zone {
+            border: 1px dashed #cfd8ea;
+            border-radius: 10px;
+            padding: 12px;
+            background: #f8fafc;
+            color: #4a5568;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+        }
+
+        .drop-zone.dragover {
+            border-color: #2f5bf2;
+            background: #eef2ff;
+            color: #1f2a44;
         }
 
         .card {
@@ -2445,18 +3242,19 @@
         <div class="top-nav">
             <div class="nav-shell">
                 <div class="brand">
-                    <div class="brand-mark" aria-label="Collie logo"></div>
-                    <div class="brand-title">Collie</div>
+                    <div class="brand-title" data-shell-title="COLLIE">Collie</div>
                 </div>
                 <div class="nav-actions">
                     <button class="tab-btn active" id="tabBtnHome" onclick="switchMainTab('home')">首页</button>
                     <button class="tab-btn" id="tabBtnAnalysis" onclick="switchMainTab('analysis')">Bugreport 智能分析</button>
                     <button class="tab-btn" id="tabBtnUtilities" onclick="switchMainTab('utilities')">实用工具</button>
                     <button class="tab-btn" id="tabBtnRd" onclick="switchMainTab('rd')">研发自测</button>
+                    <button class="tab-btn" id="tabBtnRefDocs" onclick="switchMainTab('refdocs')">参考文档</button>
                 </div>
                 <div class="theme-switcher" role="group" aria-label="主题切换">
                     <span class="theme-label">主题</span>
                     <button class="theme-chip active" type="button" data-theme="aurora" aria-pressed="true">星河蓝</button>
+                    <button class="theme-chip" type="button" data-theme="shell" aria-pressed="false">Shell</button>
                     <button class="theme-chip" type="button" data-theme="minecraft" aria-pressed="false">我的世界</button>
                 </div>
             </div>
@@ -2464,8 +3262,67 @@
 
         <div class="tab-panel active" id="homeTab">
             <div class="home-hero">
-                <h1>Collie Linux 内核与 Android Bugreport 综述</h1>
-                <p>围绕内核内存回收、Android Bugreport 解析与查杀信号，帮助研发快速建立问题画像并选择合适的分析入口。</p>
+                <h1>Collie Bugreport &amp; Memory Hub</h1>
+                <p>更快定位异常内存、查杀与关键进程。</p>
+            </div>
+            <div class="home-guide motion-rise" id="homeGuide">
+                <div class="guide-title">首次使用 · 3 步完成分析</div>
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <h4>1. 上传报告</h4>
+                        <p>支持 .txt/.zip bugreport 文件，拖拽或点击即可。</p>
+                    </div>
+                    <div class="guide-step">
+                        <h4>2. 选择场景</h4>
+                        <p>选择常用场景或自定义应用列表，确认分析范围。</p>
+                    </div>
+                    <div class="guide-step">
+                        <h4>3. 查看结果</h4>
+                        <p>获得 HTML 报告、关键指标与 AI 解读。</p>
+                    </div>
+                </div>
+                <div class="guide-actions">
+                    <button class="guide-btn primary" type="button" onclick="switchMainTab('analysis')">开始上传</button>
+                    <button class="guide-btn" type="button" id="dismissGuideBtn">不再提示</button>
+                </div>
+            </div>
+            <div class="home-summary motion-rise" id="homeSummary">
+                <div class="summary-card">
+                    <div class="summary-title">最近 7 天任务趋势</div>
+                    <div class="summary-metrics">
+                        <div class="summary-metric">
+                            <span>本周任务</span>
+                            <strong id="summaryWeekTotal">-</strong>
+                        </div>
+                        <div class="summary-metric">
+                            <span>已完成</span>
+                            <strong id="summaryWeekDone">-</strong>
+                        </div>
+                        <div class="summary-metric">
+                            <span>今日新增</span>
+                            <strong id="summaryToday">-</strong>
+                        </div>
+                    </div>
+                    <div class="summary-chart" id="summaryChart"></div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-title">活跃场景</div>
+                    <div class="summary-metrics">
+                        <div class="summary-metric">
+                            <span>Top 场景</span>
+                            <strong id="summaryTopScene">-</strong>
+                        </div>
+                        <div class="summary-metric">
+                            <span>进行中</span>
+                            <strong id="summaryRunning">-</strong>
+                        </div>
+                        <div class="summary-metric">
+                            <span>失败</span>
+                            <strong id="summaryFailed">-</strong>
+                        </div>
+                    </div>
+                    <p class="section-intro" id="summaryHint">等待任务数据加载。</p>
+                </div>
             </div>
             <div class="home-entry">
                 <button class="home-cta" onclick="switchMainTab('analysis')">
@@ -2495,6 +3352,23 @@
                             <div class="theme-tags">
                                 <span class="theme-tag">渐变层次</span>
                                 <span class="theme-tag">清爽阅读</span>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="theme-card" type="button" data-theme="shell" aria-pressed="false">
+                        <div class="theme-preview theme-preview-shell">
+                            <div class="shell-lines">
+                                <span>$ collie --analyze bugreport.zip</span>
+                                <span>> parsing ... ok</span>
+                                <span>> insights: 42</span>
+                            </div>
+                        </div>
+                        <div class="theme-meta">
+                            <h3>Shell</h3>
+                            <p>仿终端的极简界面，强调命令行与分析效率。</p>
+                            <div class="theme-tags">
+                                <span class="theme-tag">CLI 风格</span>
+                                <span class="theme-tag">荧光绿</span>
                             </div>
                         </div>
                     </button>
@@ -2540,7 +3414,7 @@
 
         <div class="tab-panel" id="analysisTab">
         <div class="header">
-            <h1>Collie Bugreport Hub</h1>
+            <h1>Bugreport Hub</h1>
             <p>为研发与性能团队打造的场景化分析与复盘中心，快速定位关键 kill、驻留与内存指标变化。</p>
         </div>
 
@@ -2568,6 +3442,10 @@
                 <h2 class="section-title">
                     <span>分析场景</span>
                 </h2>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+                    <button class="task-btn view" type="button" onclick="applyLastTemplate()">复用上次配置</button>
+                    <span class="muted" id="lastTemplateHint">暂无可复用配置</span>
+                </div>
                 
                 <div class="scene-grid" id="sceneGrid">
                     <div class="scene-card" data-scene="dynamic_performance">
@@ -2644,6 +3522,11 @@
                     <span class="progress-message" id="progressMessage">准备分析...</span>
                     <span class="progress-percent" id="progressPercent">0%</span>
                 </div>
+            </div>
+            <div class="error-diagnostics" id="errorDiagnostics" style="display: none;">
+                <h4>分析失败诊断</h4>
+                <p id="errorDiagnosticsMsg">分析失败。</p>
+                <ul id="errorDiagnosticsList"></ul>
             </div>
             <div id="autoWindowInfo" class="auto-window-info" style="display:none;"></div>
 
@@ -2815,6 +3698,34 @@
                     启用对比模式
                 </button>
             </div>
+            <div class="task-tools">
+                <div class="task-filters">
+                    <input id="taskFilterQuery" class="task-filter-input" type="text" placeholder="搜索文件名 / 场景 / 状态">
+                    <select id="taskFilterStatus" class="task-filter-select">
+                        <option value="">全部状态</option>
+                        <option value="uploaded">待分析</option>
+                        <option value="analyzing">分析中</option>
+                        <option value="paused">待确认</option>
+                        <option value="completed">已完成</option>
+                        <option value="error">失败</option>
+                    </select>
+                    <select id="taskFilterScene" class="task-filter-select">
+                        <option value="">全部场景</option>
+                    </select>
+                    <input id="taskFilterStart" class="task-filter-date" type="date">
+                    <input id="taskFilterEnd" class="task-filter-date" type="date">
+                    <button class="task-btn" onclick="applyTaskFilters()">筛选</button>
+                    <button class="task-btn" onclick="resetTaskFilters()">重置</button>
+                </div>
+                <div class="task-batch-controls" id="batchControls" style="display:none;">
+                    <span class="task-batch-count" id="batchSelectedCount">已选择 0</span>
+                    <button class="task-btn delete" onclick="batchDelete()">批量删除</button>
+                    <button class="task-btn view" onclick="batchDownloadZip()">批量下载</button>
+                    <button class="task-btn" onclick="batchExportList()">导出清单</button>
+                    <button class="task-btn" onclick="exitBatchMode()">取消</button>
+                </div>
+                <button id="enableBatchBtn" class="task-btn" onclick="enableBatchMode()">批量操作</button>
+            </div>
             <div class="task-list" id="taskList">
                 <div class="empty-state">
                     <div class="empty-state-icon">暂无数据</div>
@@ -2862,7 +3773,7 @@
 
         <div class="tab-panel" id="utilitiesTab">
             <div class="header">
-                <h1>Collie Utilities Hub</h1>
+                <h1>Utilities Hub</h1>
                 <p>面向设备侧的快速操作与诊断入口，集中管理安装、版本、采集与对比等基础能力。</p>
                 <p class="section-intro">适合在测试前准备与问题定位时使用，确保工具链与设备状态保持一致。</p>
             </div>
@@ -2905,9 +3816,10 @@ python3 adb_agent.py \
                     <button class="subtab-btn active" data-subtab="app_install" onclick="switchUtilitySubTab('app_install')">应用安装</button>
                     <button class="subtab-btn" data-subtab="check_app" onclick="switchUtilitySubTab('check_app')">版本检查</button>
                     <button class="subtab-btn" data-subtab="collect_device_meminfo" onclick="switchUtilitySubTab('collect_device_meminfo')">设备内存采集</button>
-                    <button class="subtab-btn" data-subtab="compare_android_mem_design" onclick="switchUtilitySubTab('compare_android_mem_design')">内存设计对比</button>
                     <button class="subtab-btn" data-subtab="complie_and_prepare_app" onclick="switchUtilitySubTab('complie_and_prepare_app')">编译与预启动</button>
                     <button class="subtab-btn" data-subtab="meminfo_summary" onclick="switchUtilitySubTab('meminfo_summary')">Meminfo 摘要</button>
+                    <button class="subtab-btn" data-subtab="killinfo_line_parse" onclick="switchUtilitySubTab('killinfo_line_parse')">Kill 信息解析</button>
+                    <button class="subtab-btn" data-subtab="persist_props" onclick="switchUtilitySubTab('persist_props')">属性开关</button>
                 </div>
 
                 <div class="subtab-panel active" id="utilSubTab-app_install">
@@ -3024,16 +3936,6 @@ python3 adb_agent.py \
                     </div>
                 </div>
 
-                <div class="subtab-panel" id="utilSubTab-compare_android_mem_design">
-                    <div class="card">
-                        <div class="card-title">compare_android_mem_design（内存设计对比）</div>
-                        <div class="muted">该模块偏离线分析流程，当前建议继续使用分析平台与对比分析入口。</div>
-                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="switchMainTab('analysis')">前往 Bugreport 分析</button>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="subtab-panel" id="utilSubTab-complie_and_prepare_app">
                     <div class="card">
                         <div class="card-title">complie_and_prepare_app（编译与预启动）</div>
@@ -3097,12 +3999,44 @@ python3 adb_agent.py \
                         </div>
                     </div>
                 </div>
+
+                <div class="subtab-panel" id="utilSubTab-killinfo_line_parse">
+                    <div class="card">
+                        <div class="card-title">killinfo_line_parse（单行 kill 信息解析）</div>
+                        <div class="muted">粘贴单行 killinfo / am_kill / lowmemorykiller 日志并解析为可读信息。</div>
+                        <div class="utilities-grid" style="margin-top:12px;">
+                            <div style="grid-column: 1 / -1;">
+                                <label>单行日志</label>
+                                <textarea id="utilKillLineInput" class="utilities-log" style="max-height:180px; background:#ffffff; color:#1f2937; border:1px solid #d5deef;" placeholder="02-22 12:34:56.789 ... killinfo: [...]"></textarea>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="task-btn view" onclick="runKillinfoLineParse()">解析</button>
+                        </div>
+                        <div id="utilKillLineResultWrap" style="margin-top:12px; display:none;">
+                            <div class="muted" style="margin-bottom:6px;">解析结果</div>
+                            <div id="utilKillLineResult" style="min-height:140px; background:#ffffff; color:#1f2937; border:1px solid #d5deef; border-radius:8px; padding:10px 12px; white-space:pre-wrap;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subtab-panel" id="utilSubTab-persist_props">
+                    <div class="card">
+                        <div class="card-title">persist 属性开关</div>
+                        <div id="utilPersistPropsStatus" class="muted" style="margin-top:8px;"></div>
+                        <div id="utilPersistPropsList" style="margin-top:12px;"></div>
+                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="task-btn view" onclick="refreshPersistProps()">刷新</button>
+                            <button class="task-btn delete" onclick="clearPersistProps()">一键关闭全部</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="tab-panel" id="rdTab">
             <div class="header">
-                <h1>Collie R&amp;D Hub</h1>
+                <h1>R&amp;D Hub</h1>
                 <p>研发自测与长链路验证入口，覆盖存活、连续启动与性能监控的组合场景。</p>
                 <p class="section-intro">适合在专项验证与回归流程中使用，帮助快速还原测试链路并沉淀结果。</p>
             </div>
@@ -3116,6 +4050,7 @@ python3 adb_agent.py \
                     <button class="subtab-btn" data-subtab="check_app_alive" onclick="switchRdSubTab('check_app_alive')">存活检查</button>
                     <button class="subtab-btn" data-subtab="cont_startup_stay" onclick="switchRdSubTab('cont_startup_stay')">连续启动-驻留</button>
                     <button class="subtab-btn" data-subtab="simpleperf" onclick="switchRdSubTab('simpleperf')">simpleperf抓取</button>
+                    <button class="subtab-btn" data-subtab="mem_design_compare" onclick="switchRdSubTab('mem_design_compare')">内存设计对比</button>
                 </div>
 
                 <div class="subtab-panel active" id="rdSubTab-app_died_moniter">
@@ -3305,6 +4240,74 @@ python3 adb_agent.py \
                         ></iframe>
                     </div>
                 </div>
+
+                <div class="subtab-panel" id="rdSubTab-mem_design_compare">
+                    <div class="card">
+                        <div class="card-title">内存设计对比（设备信息对比）</div>
+                        <div class="muted">上传两份 collect_device_meminfo 生成的 txt 文件，生成对比结果。</div>
+                        <div class="utilities-grid" style="margin-top:12px;">
+                            <div>
+                                <label>设备 A 文件</label>
+                                <div id="rdMemDropA" class="drop-zone" onclick="pickRdMemFile('A')">拖拽或点击选择文件</div>
+                                <div id="rdMemFileAInfo" class="muted" style="margin-top:6px;">未选择文件</div>
+                                <input id="rdMemFileA" type="file" accept=".txt" style="display:none;">
+                            </div>
+                            <div>
+                                <label>设备 B 文件</label>
+                                <div id="rdMemDropB" class="drop-zone" onclick="pickRdMemFile('B')">拖拽或点击选择文件</div>
+                                <div id="rdMemFileBInfo" class="muted" style="margin-top:6px;">未选择文件</div>
+                                <input id="rdMemFileB" type="file" accept=".txt" style="display:none;">
+                            </div>
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="task-btn view" onclick="runMemDesignCompare()">开始对比</button>
+                            <a id="rdMemCompareDownload" class="task-btn" style="display:none;" href="#" download>下载对比结果</a>
+                        </div>
+                        <div id="rdMemCompareStatus" class="muted" style="margin-top:8px;"></div>
+                        <div id="rdMemCompareResultWrap" style="margin-top:12px; display:none;">
+                            <div class="muted" style="margin-bottom:6px;">对比结果</div>
+                            <div id="rdMemCompareResult" style="min-height:180px; background:#ffffff; color:#1f2937; border:1px solid #d5deef; border-radius:8px; padding:10px 12px; white-space:pre-wrap;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="refDocsTab">
+            <div class="header">
+                <h1>Reference Docs</h1>
+                <p>从服务器 docs 目录加载 Markdown 文档，按行预览并展开阅读。</p>
+            </div>
+            <div class="main-card">
+                <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+                    <button class="task-btn view" type="button" onclick="loadRefDocsList()">刷新列表</button>
+                </div>
+                <div class="doc-list-view" id="refDocListView">
+                    <div class="doc-list" id="refDocList">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">暂无文档</div>
+                            <p>docs 目录暂无可读 Markdown 文件</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="doc-detail-view" id="refDocDetailView" style="display:none;">
+                    <div class="doc-detail-head">
+                        <button class="task-btn" type="button" onclick="showRefDocList()">返回列表</button>
+                        <div class="doc-detail-meta">
+                            <h3 id="refDocTitle">文档标题</h3>
+                            <span class="muted" id="refDocMeta">文档信息</span>
+                        </div>
+                    </div>
+                    <div class="doc-layout">
+                        <div class="doc-reader">
+                            <div class="md-content" id="refDocContent"></div>
+                        </div>
+                        <div class="doc-toc">
+                            <h4>目录</h4>
+                            <div id="refDocToc" class="doc-toc-list">暂无目录</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -3327,6 +4330,10 @@ python3 adb_agent.py \
     </div>
 
     <div id="toast" class="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.32.2/tocbot.min.js"></script>
 
     <footer class="site-footer">
         <div class="footer-left">
@@ -3388,7 +4395,19 @@ python3 adb_agent.py \
         let autoWindowCandidates = [];
         let sceneSelectionLocked = false;
         const THEME_KEY = 'collie_theme';
-        const THEME_LIST = ['aurora', 'minecraft'];
+        const THEME_LIST = ['aurora', 'shell', 'minecraft'];
+        const GUIDE_KEY = 'collie_guide_dismissed';
+        const LAST_TEMPLATE_KEY = 'collie_last_template';
+        let batchMode = false;
+        let selectedBatchTasks = [];
+        let taskFilterTimer = null;
+        const taskFilters = {
+            query: '',
+            status: '',
+            scene: '',
+            start: '',
+            end: '',
+        };
 
         function setTheme(theme) {
             const nextTheme = THEME_LIST.includes(theme) ? theme : 'aurora';
@@ -3409,6 +4428,84 @@ python3 adb_agent.py \
             });
             const savedTheme = localStorage.getItem(THEME_KEY);
             setTheme(savedTheme || 'aurora');
+        }
+
+        function initHomeGuide() {
+            const guide = document.getElementById('homeGuide');
+            const dismissBtn = document.getElementById('dismissGuideBtn');
+            if (!guide || !dismissBtn) return;
+            const dismissed = localStorage.getItem(GUIDE_KEY) === 'true';
+            guide.classList.toggle('hidden', dismissed);
+            dismissBtn.addEventListener('click', () => {
+                localStorage.setItem(GUIDE_KEY, 'true');
+                guide.classList.add('hidden');
+            });
+        }
+
+        function updateHomeSummary(tasks) {
+            const weekTotalNode = document.getElementById('summaryWeekTotal');
+            const weekDoneNode = document.getElementById('summaryWeekDone');
+            const todayNode = document.getElementById('summaryToday');
+            const chartNode = document.getElementById('summaryChart');
+            const topSceneNode = document.getElementById('summaryTopScene');
+            const runningNode = document.getElementById('summaryRunning');
+            const failedNode = document.getElementById('summaryFailed');
+            const hintNode = document.getElementById('summaryHint');
+
+            if (!weekTotalNode || !chartNode) return;
+            const now = new Date();
+            const dayKeys = [];
+            for (let i = 6; i >= 0; i -= 1) {
+                const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+                dayKeys.push(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+            }
+
+            const counts = new Array(7).fill(0);
+            const sceneMap = new Map();
+            let weekTotal = 0;
+            let weekDone = 0;
+            let todayCount = 0;
+            let runningCount = 0;
+            let failedCount = 0;
+
+            tasks.forEach(item => {
+                const ts = item && (item.created_at || item.createdAt || item.created_time || item.time || '');
+                const parsed = ts ? new Date(ts) : null;
+                if (!parsed || Number.isNaN(parsed.getTime())) return;
+                const key = `${parsed.getFullYear()}-${parsed.getMonth()}-${parsed.getDate()}`;
+                const idx = dayKeys.indexOf(key);
+                if (idx >= 0) {
+                    counts[idx] += 1;
+                    weekTotal += 1;
+                    if (item.status === 'completed') weekDone += 1;
+                    if (idx === 6) todayCount += 1;
+                }
+                const scene = String(item.scene || '未知');
+                sceneMap.set(scene, (sceneMap.get(scene) || 0) + 1);
+                if (item.status === 'analyzing' || item.status === 'uploaded') runningCount += 1;
+                if (item.status === 'error') failedCount += 1;
+            });
+
+            const maxCount = Math.max(1, ...counts);
+            chartNode.innerHTML = counts
+                .map(count => {
+                    const height = Math.max(8, Math.round((count / maxCount) * 72));
+                    return `<div class="summary-bar" style="height:${height}px;"></div>`;
+                })
+                .join('');
+
+            const topSceneEntry = Array.from(sceneMap.entries()).sort((a, b) => b[1] - a[1])[0];
+            const topScene = topSceneEntry ? topSceneEntry[0] : '-';
+
+            weekTotalNode.textContent = String(weekTotal);
+            weekDoneNode.textContent = String(weekDone);
+            todayNode.textContent = String(todayCount);
+            topSceneNode.textContent = topScene;
+            runningNode.textContent = String(runningCount);
+            failedNode.textContent = String(failedCount);
+            if (hintNode) {
+                hintNode.textContent = weekTotal ? `最近 7 天共 ${weekTotal} 条任务记录。` : '暂无任务数据。';
+            }
         }
 
         function _createUtilityTabState() {
@@ -3593,6 +4690,9 @@ python3 adb_agent.py \
             utilityStdoutOffset = Number(state.stdoutOffset || 0);
             utilityStderrOffset = Number(state.stderrOffset || 0);
             _renderUtilityPanelFromTabState(state);
+            if (currentUtilitySubTab === 'persist_props') {
+                refreshPersistProps();
+            }
             if (utilityPollTimer) {
                 clearInterval(utilityPollTimer);
                 utilityPollTimer = null;
@@ -3779,6 +4879,171 @@ python3 adb_agent.py \
                 html += `<pre><code>${escapeHtml(codeBuffer.join('\n'))}</code></pre>`;
             }
             return html;
+        }
+
+        function renderRefDocsList() {
+            const list = document.getElementById('refDocList');
+            if (!list) return;
+            if (!Array.isArray(window.refDocs) || !window.refDocs.length) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">暂无文档</div>
+                        <p>docs 目录暂无可读 Markdown 文件</p>
+                    </div>
+                `;
+                return;
+            }
+            const rows = window.refDocs.map((doc, idx) => `
+                <div class="doc-row ${doc.active ? 'active' : ''}" data-index="${idx}">
+                    <span>${idx + 1}</span>
+                    <span class="doc-title">${escapeHtml(doc.name)}</span>
+                    <span class="doc-path">${escapeHtml(doc.path)}</span>
+                    <span class="doc-lines">${doc.line_count ? `${doc.line_count} 行` : '-'}</span>
+                </div>
+            `).join('');
+            list.innerHTML = rows;
+        }
+
+        function slugify(text) {
+            return String(text || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'section';
+        }
+
+        function renderRefDocContent(doc) {
+            const titleNode = document.getElementById('refDocTitle');
+            const metaNode = document.getElementById('refDocMeta');
+            const contentNode = document.getElementById('refDocContent');
+            const tocNode = document.getElementById('refDocToc');
+            if (!contentNode || !tocNode) return;
+            if (!doc) {
+                contentNode.innerHTML = '';
+                tocNode.textContent = '暂无目录';
+                if (titleNode) titleNode.textContent = '请选择一个文档';
+                if (metaNode) metaNode.textContent = '支持按行预览 · 点击左侧条目展开';
+                return;
+            }
+            if (titleNode) titleNode.textContent = doc.name;
+            if (metaNode) metaNode.textContent = `共 ${doc.lines.length} 行 · ${doc.name}`;
+            if (window.marked && window.DOMPurify) {
+                const rawHtml = window.marked.parse(doc.content || '');
+                contentNode.innerHTML = window.DOMPurify.sanitize(rawHtml);
+            } else {
+                contentNode.innerHTML = '<p>文档渲染组件未加载。</p>';
+            }
+
+            if (window.tocbot) {
+                window.tocbot.destroy();
+                window.tocbot.init({
+                    tocSelector: '#refDocToc',
+                    contentSelector: '#refDocContent',
+                    headingSelector: 'h1, h2, h3',
+                    collapseDepth: 3,
+                });
+            } else {
+                tocNode.textContent = '目录组件未加载';
+            }
+        }
+
+        async function loadRefDocsList() {
+            try {
+                const resp = await fetch('/api/docs');
+                const data = await resp.json();
+                const docs = Array.isArray(data.docs) ? data.docs : [];
+                window.refDocs = docs.map(item => ({
+                    name: item.name,
+                    path: item.path,
+                    previewLines: item.preview_lines || [],
+                    line_count: item.line_count || 0,
+                    active: false,
+                    content: '',
+                    lines: [],
+                }));
+                renderRefDocContent(null);
+                showRefDocList();
+                renderRefDocsList();
+            } catch (err) {
+                console.error('加载参考文档失败:', err);
+                window.refDocs = [];
+                renderRefDocContent(null);
+                showRefDocList();
+                renderRefDocsList();
+            }
+        }
+
+        async function openRefDocByIndex(index) {
+            const doc = (window.refDocs || [])[index];
+            if (!doc) return;
+            try {
+                showRefDocDetail();
+                if (!doc.content) {
+                    const resp = await fetch(`/api/docs/${encodeURI(doc.path)}`);
+                    if (!resp.ok) {
+                        throw new Error(`文档加载失败: ${resp.status}`);
+                    }
+                    const data = await resp.json();
+                    doc.content = data.content || '';
+                    doc.lines = doc.content.replace(/\r\n/g, '\n').split('\n');
+                }
+                window.refDocs.forEach(item => { item.active = false; });
+                doc.active = true;
+                renderRefDocsList();
+                renderRefDocContent(doc);
+            } catch (err) {
+                console.error('加载文档内容失败:', err);
+                showToast('文档加载失败');
+            }
+        }
+
+        function bindRefDocsEvents() {
+            const list = document.getElementById('refDocList');
+            if (list) {
+                list.addEventListener('click', (event) => {
+                    const item = event.target.closest('.doc-row');
+                    if (!item) return;
+                    const idx = Number(item.getAttribute('data-index'));
+                    if (Number.isNaN(idx)) return;
+                    openRefDocByIndex(idx);
+                });
+            }
+        }
+
+        function showRefDocList() {
+            const listView = document.getElementById('refDocListView');
+            const detailView = document.getElementById('refDocDetailView');
+            if (listView) listView.style.display = 'block';
+            if (detailView) detailView.style.display = 'none';
+        }
+
+        function showRefDocDetail() {
+            const listView = document.getElementById('refDocListView');
+            const detailView = document.getElementById('refDocDetailView');
+            if (listView) listView.style.display = 'none';
+            if (detailView) detailView.style.display = 'block';
+        }
+
+        function buildInterpretSummary(text) {
+            const raw = String(text || '').replace(/\r\n/g, '\n');
+            const lines = raw.split('\n').map(line => line.trim()).filter(Boolean);
+            const bullets = lines
+                .filter(line => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line))
+                .map(line => line.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, ''));
+            const summary = [];
+
+            bullets.forEach(item => {
+                if (summary.length < 3 && item) summary.push(item);
+            });
+
+            if (summary.length < 3) {
+                const firstParagraph = lines.find(line => !line.startsWith('#') && line.length > 12) || '';
+                const sentences = firstParagraph.split(/[。！？.!?]/).map(s => s.trim()).filter(Boolean);
+                sentences.forEach(sentence => {
+                    if (summary.length < 3) summary.push(sentence);
+                });
+            }
+
+            return summary.slice(0, 3);
         }
 
         function formatMemoryValue(value, fallback = '-') {
@@ -4401,10 +5666,22 @@ python3 adb_agent.py \
         const progressFill = document.getElementById('progressFill');
         const progressMessage = document.getElementById('progressMessage');
         const progressPercent = document.getElementById('progressPercent');
+        const errorDiagnostics = document.getElementById('errorDiagnostics');
+        const errorDiagnosticsMsg = document.getElementById('errorDiagnosticsMsg');
+        const errorDiagnosticsList = document.getElementById('errorDiagnosticsList');
         const autoWindowInfo = document.getElementById('autoWindowInfo');
         const resultsContainer = document.getElementById('resultsContainer');
         const resultLinks = document.getElementById('resultLinks');
         const taskList = document.getElementById('taskList');
+        const taskFilterQuery = document.getElementById('taskFilterQuery');
+        const taskFilterStatus = document.getElementById('taskFilterStatus');
+        const taskFilterScene = document.getElementById('taskFilterScene');
+        const taskFilterStart = document.getElementById('taskFilterStart');
+        const taskFilterEnd = document.getElementById('taskFilterEnd');
+        const batchControls = document.getElementById('batchControls');
+        const batchSelectedCount = document.getElementById('batchSelectedCount');
+        const enableBatchBtn = document.getElementById('enableBatchBtn');
+        const lastTemplateHint = document.getElementById('lastTemplateHint');
         const manualTimeInput = document.getElementById('manualTimeInput');
         const confirmReason = document.getElementById('confirmReason');
         const manualStartTime = document.getElementById('manualStartTime');
@@ -4455,6 +5732,9 @@ python3 adb_agent.py \
         const utilCheckSelectedCount = document.getElementById('utilCheckSelectedCount');
         const utilStartCheckCompareBtn = document.getElementById('utilStartCheckCompareBtn');
         const utilAlivePackage = document.getElementById('utilAlivePackage');
+        const utilKillLineInput = document.getElementById('utilKillLineInput');
+        const utilKillLineResultWrap = document.getElementById('utilKillLineResultWrap');
+        const utilKillLineResult = document.getElementById('utilKillLineResult');
         const utilCompilePresetSelect = document.getElementById('utilCompilePresetSelect');
         const utilCompilePreviewWrap = document.getElementById('utilCompilePreviewWrap');
         const utilToggleCompilePreviewBtn = document.getElementById('utilToggleCompilePreviewBtn');
@@ -4463,6 +5743,18 @@ python3 adb_agent.py \
         const utilCompileProgressFill = document.getElementById('utilCompileProgressFill');
         const utilCompileProgressDesc = document.getElementById('utilCompileProgressDesc');
         const utilCompileProgressList = document.getElementById('utilCompileProgressList');
+        const rdMemFileA = document.getElementById('rdMemFileA');
+        const rdMemFileB = document.getElementById('rdMemFileB');
+        const rdMemFileAInfo = document.getElementById('rdMemFileAInfo');
+        const rdMemFileBInfo = document.getElementById('rdMemFileBInfo');
+        const rdMemDropA = document.getElementById('rdMemDropA');
+        const rdMemDropB = document.getElementById('rdMemDropB');
+        const rdMemCompareStatus = document.getElementById('rdMemCompareStatus');
+        const rdMemCompareResultWrap = document.getElementById('rdMemCompareResultWrap');
+        const rdMemCompareResult = document.getElementById('rdMemCompareResult');
+        const rdMemCompareDownload = document.getElementById('rdMemCompareDownload');
+        const utilPersistPropsStatus = document.getElementById('utilPersistPropsStatus');
+        const utilPersistPropsList = document.getElementById('utilPersistPropsList');
         const utilCompileMode = document.getElementById('utilCompileMode');
         const utilContPresetSelect = document.getElementById('utilContPresetSelect');
         const utilContPresetPreview = document.getElementById('utilContPresetPreview');
@@ -4528,20 +5820,24 @@ python3 adb_agent.py \
             const analysisTab = document.getElementById('analysisTab');
             const utilitiesTab = document.getElementById('utilitiesTab');
             const rdTab = document.getElementById('rdTab');
+            const refDocsTab = document.getElementById('refDocsTab');
             const tabBtnHome = document.getElementById('tabBtnHome');
             const tabBtnAnalysis = document.getElementById('tabBtnAnalysis');
             const tabBtnUtilities = document.getElementById('tabBtnUtilities');
             const tabBtnRd = document.getElementById('tabBtnRd');
+            const tabBtnRefDocs = document.getElementById('tabBtnRefDocs');
 
             if (tab === 'home') {
                 homeTab.classList.add('active');
                 analysisTab.classList.remove('active');
                 utilitiesTab.classList.remove('active');
                 rdTab.classList.remove('active');
+                if (refDocsTab) refDocsTab.classList.remove('active');
                 tabBtnHome.classList.add('active');
                 tabBtnAnalysis.classList.remove('active');
                 tabBtnUtilities.classList.remove('active');
                 tabBtnRd.classList.remove('active');
+                if (tabBtnRefDocs) tabBtnRefDocs.classList.remove('active');
                 if (toolLogContainer) toolLogContainer.style.display = 'none';
                 return;
             }
@@ -4551,10 +5847,12 @@ python3 adb_agent.py \
                 analysisTab.classList.remove('active');
                 utilitiesTab.classList.add('active');
                 rdTab.classList.remove('active');
+                if (refDocsTab) refDocsTab.classList.remove('active');
                 tabBtnHome.classList.remove('active');
                 tabBtnAnalysis.classList.remove('active');
                 tabBtnUtilities.classList.add('active');
                 tabBtnRd.classList.remove('active');
+                if (tabBtnRefDocs) tabBtnRefDocs.classList.remove('active');
                 if (toolLogContainer) toolLogContainer.style.display = '';
                 mountToolDeviceStrip('utilities');
                 refreshUtilityDevices();
@@ -4569,10 +5867,12 @@ python3 adb_agent.py \
                 analysisTab.classList.remove('active');
                 utilitiesTab.classList.remove('active');
                 rdTab.classList.add('active');
+                if (refDocsTab) refDocsTab.classList.remove('active');
                 tabBtnHome.classList.remove('active');
                 tabBtnAnalysis.classList.remove('active');
                 tabBtnUtilities.classList.remove('active');
                 tabBtnRd.classList.add('active');
+                if (tabBtnRefDocs) tabBtnRefDocs.classList.remove('active');
                 if (toolLogContainer) toolLogContainer.style.display = '';
                 mountToolDeviceStrip('rd');
                 refreshUtilityDevices();
@@ -4581,13 +5881,30 @@ python3 adb_agent.py \
                 return;
             }
 
+            if (tab === 'refdocs') {
+                homeTab.classList.remove('active');
+                analysisTab.classList.remove('active');
+                utilitiesTab.classList.remove('active');
+                rdTab.classList.remove('active');
+                if (refDocsTab) refDocsTab.classList.add('active');
+                tabBtnHome.classList.remove('active');
+                tabBtnAnalysis.classList.remove('active');
+                tabBtnUtilities.classList.remove('active');
+                tabBtnRd.classList.remove('active');
+                if (tabBtnRefDocs) tabBtnRefDocs.classList.add('active');
+                if (toolLogContainer) toolLogContainer.style.display = 'none';
+                return;
+            }
+
             homeTab.classList.remove('active');
             utilitiesTab.classList.remove('active');
             rdTab.classList.remove('active');
+            if (refDocsTab) refDocsTab.classList.remove('active');
             analysisTab.classList.add('active');
             tabBtnHome.classList.remove('active');
             tabBtnUtilities.classList.remove('active');
             tabBtnRd.classList.remove('active');
+            if (tabBtnRefDocs) tabBtnRefDocs.classList.remove('active');
             tabBtnAnalysis.classList.add('active');
             if (toolLogContainer) toolLogContainer.style.display = 'none';
             mountToolDeviceStrip('utilities');
@@ -5868,11 +7185,21 @@ python3 adb_agent.py \
                 if (data.action === 'compile_apps') {
                     _renderCompileProgressPanel(data);
                 }
+                if (data.action === 'killinfo_line_parse' && data.status === 'error') {
+                    if (utilKillLineResult) {
+                        utilKillLineResult.textContent = data.error ? `解析失败: ${data.error}` : '解析失败';
+                        utilKillLineResult.classList.add('utilities-result-error');
+                        if (utilKillLineResultWrap) {
+                            utilKillLineResultWrap.style.display = '';
+                        }
+                    }
+                }
                 updatePauseResumeButtons(data.status, data.paused);
                 updateMonitorPauseResumeButtons(data.status, data.paused, data.action);
                 updateContPauseResumeButtons(data.status, data.paused, data.action);
                 _renderUtilityFiles(pollingJobId, data.files || []);
                 _updateSimpleperfProgress(state);
+                _updateKillLineResult(state);
                 await _pollUtilityLogs(pollingJobId, state);
 
                 if (['completed', 'error', 'cancelled'].includes(data.status)) {
@@ -6107,6 +7434,277 @@ python3 adb_agent.py \
 
         function runQuickUtility(action, params) {
             runUtilityActionWithPayload(action, params || {});
+        }
+
+        function runKillinfoLineParse() {
+            const lineText = (utilKillLineInput && utilKillLineInput.value ? utilKillLineInput.value : '').trim();
+            if (!lineText) {
+                setUtilityStatus('请输入单行日志', true);
+                alert('请输入单行日志');
+                return;
+            }
+            if (utilKillLineResultWrap) {
+                utilKillLineResultWrap.style.display = 'none';
+            }
+            if (utilKillLineResult) {
+                utilKillLineResult.textContent = '';
+                utilKillLineResult.classList.remove('utilities-result-error');
+                delete utilKillLineResult.dataset.jobId;
+            }
+            runUtilityActionWithPayload('killinfo_line_parse', { line: lineText });
+        }
+
+        function _renderPersistProps(items) {
+            if (!utilPersistPropsList) return;
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) {
+                utilPersistPropsList.innerHTML = '<div class="muted">未配置任何开关</div>';
+                return;
+            }
+            utilPersistPropsList.innerHTML = list.map((item) => {
+                const key = escapeHtml(item.key || '');
+                const label = escapeHtml(item.label || item.key || '');
+                const desc = escapeHtml(item.desc || '');
+                const current = String(item.current_value ?? '');
+                const onVal = String(item.on_value ?? '');
+                const offVal = String(item.off_value ?? '');
+                const isOn = current === onVal && onVal !== '';
+                const rebootBadge = item.need_reboot ? '<span class="prop-badge warn">需重启</span>' : '';
+                const stateBadge = isOn ? '<span class="prop-badge">已开启</span>' : '<span class="prop-badge warn">已关闭</span>';
+                return `
+                    <div class="prop-card">
+                        <div class="prop-meta">
+                            <div><strong>${label}</strong></div>
+                            <div class="prop-key">${key}</div>
+                            ${desc ? `<div class="prop-desc">${desc}</div>` : ''}
+                            <div class="prop-desc">当前值: <code>${escapeHtml(current || '-')}</code></div>
+                        </div>
+                        <div class="prop-actions">
+                            ${stateBadge}
+                            ${rebootBadge}
+                            <button class="task-btn view" type="button" onclick="setPersistProp('${key}', '${escapeHtml(onVal)}')">开启</button>
+                            <button class="task-btn" type="button" onclick="setPersistProp('${key}', '${escapeHtml(offVal)}')">关闭</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function refreshPersistProps() {
+            if (!utilPersistPropsStatus) return;
+            const deviceId = (utilDeviceSelect.value || '').trim();
+            utilPersistPropsStatus.textContent = '加载中...';
+            try {
+                const url = deviceId
+                    ? `/api/utilities/persist-props?device_id=${encodeURIComponent(deviceId)}`
+                    : '/api/utilities/persist-props';
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || '加载失败');
+                }
+                _renderPersistProps(data.items || []);
+                utilPersistPropsStatus.textContent = deviceId ? '加载完成' : '';
+            } catch (err) {
+                utilPersistPropsStatus.textContent = `加载失败: ${err.message}`;
+            }
+        }
+
+        async function setPersistProp(key, value) {
+            const deviceId = (utilDeviceSelect.value || '').trim();
+            if (!deviceId) {
+                if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = '请先选择设备';
+                return;
+            }
+            if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = '设置中...';
+            try {
+                const resp = await fetch('/api/utilities/persist-props/set', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ device_id: deviceId, key, value }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || '设置失败');
+                }
+                if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = '设置成功';
+                refreshPersistProps();
+            } catch (err) {
+                if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = `设置失败: ${err.message}`;
+            }
+        }
+
+        async function clearPersistProps() {
+            const deviceId = (utilDeviceSelect.value || '').trim();
+            if (!deviceId) {
+                if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = '请先选择设备';
+                return;
+            }
+            if (!confirm('确认一键关闭全部开关？')) return;
+            if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = '处理中...';
+            try {
+                const resp = await fetch('/api/utilities/persist-props/clear', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ device_id: deviceId }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || '操作失败');
+                }
+                if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = '已全部关闭';
+                refreshPersistProps();
+            } catch (err) {
+                if (utilPersistPropsStatus) utilPersistPropsStatus.textContent = `操作失败: ${err.message}`;
+            }
+        }
+
+        function _renderRdMemFileInfo(target, file) {
+            if (!target) return;
+            if (!file) {
+                target.textContent = '未选择文件';
+                return;
+            }
+            target.textContent = `${file.name} · ${formatFileSize(file.size)}`;
+        }
+
+        function _bindRdDropZone(zone, input, info) {
+            if (!zone || !input) return;
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('dragover');
+            });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (!files || !files.length) return;
+                const file = files[0];
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext !== 'txt') {
+                    if (info) info.textContent = '仅支持 .txt 文件';
+                    return;
+                }
+                input.files = files;
+                _renderRdMemFileInfo(info, file);
+            });
+        }
+
+        if (rdMemFileA) {
+            rdMemFileA.addEventListener('change', () => {
+                const file = rdMemFileA.files && rdMemFileA.files[0];
+                _renderRdMemFileInfo(rdMemFileAInfo, file);
+            });
+        }
+
+        if (rdMemFileB) {
+            rdMemFileB.addEventListener('change', () => {
+                const file = rdMemFileB.files && rdMemFileB.files[0];
+                _renderRdMemFileInfo(rdMemFileBInfo, file);
+            });
+        }
+
+        _bindRdDropZone(rdMemDropA, rdMemFileA, rdMemFileAInfo);
+        _bindRdDropZone(rdMemDropB, rdMemFileB, rdMemFileBInfo);
+
+        function pickRdMemFile(side) {
+            if (side === 'A') {
+                if (rdMemFileA) rdMemFileA.click();
+                return;
+            }
+            if (side === 'B') {
+                if (rdMemFileB) rdMemFileB.click();
+            }
+        }
+
+        async function runMemDesignCompare() {
+            const fileA = rdMemFileA && rdMemFileA.files ? rdMemFileA.files[0] : null;
+            const fileB = rdMemFileB && rdMemFileB.files ? rdMemFileB.files[0] : null;
+            if (!fileA || !fileB) {
+                if (rdMemCompareStatus) rdMemCompareStatus.textContent = '请先选择两份 txt 文件';
+                alert('请先选择两份 txt 文件');
+                return;
+            }
+
+            if (rdMemCompareResultWrap) rdMemCompareResultWrap.style.display = 'none';
+            if (rdMemCompareResult) {
+                rdMemCompareResult.textContent = '';
+                rdMemCompareResult.classList.remove('utilities-result-error');
+            }
+            if (rdMemCompareDownload) {
+                rdMemCompareDownload.style.display = 'none';
+                rdMemCompareDownload.removeAttribute('href');
+                rdMemCompareDownload.removeAttribute('download');
+            }
+            if (rdMemCompareStatus) rdMemCompareStatus.textContent = '对比中...';
+
+            const formData = new FormData();
+            formData.append('file_a', fileA);
+            formData.append('file_b', fileB);
+
+            try {
+                const resp = await fetch('/api/rd/mem-design/compare', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || '对比失败');
+                }
+                if (rdMemCompareResult) {
+                    rdMemCompareResult.textContent = (data.report_text || '').trim() || '无对比结果';
+                    rdMemCompareResult.classList.remove('utilities-result-error');
+                }
+                if (rdMemCompareResultWrap) rdMemCompareResultWrap.style.display = '';
+                if (rdMemCompareStatus) rdMemCompareStatus.textContent = '对比完成';
+                if (rdMemCompareDownload && data.job_id && data.report_file) {
+                    const href = `/api/rd/mem-design/download/${encodeURIComponent(data.job_id)}/${encodeURIComponent(data.report_file)}`;
+                    rdMemCompareDownload.href = href;
+                    rdMemCompareDownload.download = data.report_file;
+                    rdMemCompareDownload.style.display = '';
+                }
+            } catch (err) {
+                if (rdMemCompareResult) {
+                    rdMemCompareResult.textContent = `对比失败: ${err.message}`;
+                    rdMemCompareResult.classList.add('utilities-result-error');
+                }
+                if (rdMemCompareResultWrap) rdMemCompareResultWrap.style.display = '';
+                if (rdMemCompareStatus) rdMemCompareStatus.textContent = '对比失败';
+            }
+        }
+
+        async function _updateKillLineResult(state) {
+            if (!utilKillLineResult) return;
+            if (!state || state.action !== 'killinfo_line_parse') return;
+            const jobId = state.jobId || utilityJobId;
+            if (!jobId) return;
+            const files = Array.isArray(state.files) ? state.files : [];
+            const target = files.find(item => item?.name === 'killinfo_line_parse.txt');
+            if (!target) return;
+            if (utilKillLineResult.dataset.jobId === jobId) return;
+
+            try {
+                const resp = await fetch(`/api/utilities/preview/${encodeURIComponent(jobId)}/${encodeURIComponent(target.name)}`);
+                if (!resp.ok) {
+                    throw new Error('无法获取解析结果');
+                }
+                const text = await resp.text();
+                utilKillLineResult.textContent = text.trim() || '无解析结果';
+                utilKillLineResult.dataset.jobId = jobId;
+                utilKillLineResult.classList.remove('utilities-result-error');
+                if (utilKillLineResultWrap) {
+                    utilKillLineResultWrap.style.display = '';
+                }
+            } catch (err) {
+                utilKillLineResult.textContent = `获取结果失败: ${err.message}`;
+                utilKillLineResult.classList.add('utilities-result-error');
+                if (utilKillLineResultWrap) {
+                    utilKillLineResultWrap.style.display = '';
+                }
+            }
         }
 
         function runCheckApp() {
@@ -6407,6 +8005,7 @@ python3 adb_agent.py \
                     currentTaskId = data.task_id;
                     _resetKillFocusCandidateSelection('');
                     setSceneCardsLocked(false);
+                    hideErrorDiagnostics();
                     fileInfo.classList.add('active');
                     fileInfo.classList.remove('error');
                     fileName.textContent = data.filename;
@@ -6438,22 +8037,86 @@ python3 adb_agent.py \
         sceneCards.forEach(card => {
             card.addEventListener('click', () => {
                 if (sceneSelectionLocked) return;
-                sceneCards.forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
-                selectedScene = card.dataset.scene;
-
-                if (selectedScene === 'custom') {
-                    customApps.classList.add('active');
-                    if (killFocusOptions) killFocusOptions.classList.remove('active');
-                } else if (selectedScene === 'kill_focus') {
-                    customApps.classList.remove('active');
-                    if (killFocusOptions) killFocusOptions.classList.add('active');
-                } else {
-                    customApps.classList.remove('active');
-                    if (killFocusOptions) killFocusOptions.classList.remove('active');
-                }
+                setSelectedScene(card.dataset.scene);
             });
         });
+
+        function setSelectedScene(sceneKey) {
+            const target = String(sceneKey || '').trim();
+            if (!target) return;
+            sceneCards.forEach(c => c.classList.remove('selected'));
+            const targetCard = Array.from(sceneCards).find(c => c.dataset.scene === target);
+            if (targetCard) targetCard.classList.add('selected');
+            selectedScene = target;
+
+            if (selectedScene === 'custom') {
+                customApps.classList.add('active');
+                if (killFocusOptions) killFocusOptions.classList.remove('active');
+            } else if (selectedScene === 'kill_focus') {
+                customApps.classList.remove('active');
+                if (killFocusOptions) killFocusOptions.classList.add('active');
+            } else {
+                customApps.classList.remove('active');
+                if (killFocusOptions) killFocusOptions.classList.remove('active');
+            }
+        }
+
+        function updateLastTemplateHint() {
+            if (!lastTemplateHint) return;
+            const raw = localStorage.getItem(LAST_TEMPLATE_KEY);
+            if (!raw) {
+                lastTemplateHint.textContent = '暂无可复用配置';
+                return;
+            }
+            try {
+                const data = JSON.parse(raw);
+                const when = data && data.timestamp ? new Date(data.timestamp) : null;
+                const whenText = when && !Number.isNaN(when.getTime())
+                    ? when.toLocaleString()
+                    : '最近';
+                lastTemplateHint.textContent = `上次配置：${data.scene || '未知'} · ${whenText}`;
+            } catch (err) {
+                lastTemplateHint.textContent = '暂无可复用配置';
+            }
+        }
+
+        function saveLastTemplate(payload) {
+            try {
+                localStorage.setItem(LAST_TEMPLATE_KEY, JSON.stringify(payload));
+            } catch (err) {
+                console.warn('保存模板失败:', err);
+            }
+            updateLastTemplateHint();
+        }
+
+        function applyLastTemplate() {
+            const raw = localStorage.getItem(LAST_TEMPLATE_KEY);
+            if (!raw) {
+                showToast('暂无可复用配置');
+                return;
+            }
+            try {
+                const data = JSON.parse(raw);
+                if (data.scene) {
+                    setSelectedScene(data.scene);
+                }
+                if (data.scene === 'custom' && customAppsText) {
+                    customAppsText.value = data.custom_apps || '';
+                }
+                if (data.scene === 'kill_focus') {
+                    if (killFocusPackageSelect && data.kill_focus_package) {
+                        killFocusPackageSelect.value = data.kill_focus_package;
+                    }
+                    if (killFocusPackageCustom && data.kill_focus_package_custom) {
+                        killFocusPackageCustom.value = data.kill_focus_package_custom;
+                    }
+                }
+                showToast('已复用上次配置');
+            } catch (err) {
+                console.warn('复用模板失败:', err);
+                showToast('复用失败，请重新配置');
+            }
+        }
 
         // 开始分析
         analyzeBtn.addEventListener('click', startAnalysis);
@@ -6470,6 +8133,7 @@ python3 adb_agent.py \
                 setSceneCardsLocked(false);
             };
 
+            hideErrorDiagnostics();
             setSceneCardsLocked(true);
             analyzeBtn.disabled = true;
             analyzeBtn.innerHTML = '<span class="loading-spinner"></span> 准备中...';
@@ -6531,6 +8195,14 @@ python3 adb_agent.py \
                 }
             }
 
+            saveLastTemplate({
+                scene: selectedScene,
+                custom_apps: customAppsText ? customAppsText.value.trim() : '',
+                kill_focus_package: killFocusPackageSelect ? killFocusPackageSelect.value : '',
+                kill_focus_package_custom: killFocusPackageCustom ? killFocusPackageCustom.value : '',
+                timestamp: Date.now(),
+            });
+
             analyzeBtn.innerHTML = '<span class="loading-spinner"></span> 分析中...';
             progressFill.style.width = '30%';
             progressPercent.textContent = '30%';
@@ -6555,11 +8227,13 @@ python3 adb_agent.py \
                     startStatusCheck();
                 } else {
                     const data = await response.json();
-                    alert('启动分析失败: ' + (data.error || '未知错误'));
+                    showErrorDiagnostics(data.error || '未知错误');
+                    showToast('启动分析失败，请查看诊断提示');
                     resetAnalyzeButton();
                 }
             } catch (error) {
-                alert('启动分析出错: ' + error.message);
+                showErrorDiagnostics(error.message || '未知错误');
+                showToast('启动分析出错，请查看诊断提示');
                 resetAnalyzeButton();
             }
         }
@@ -6648,13 +8322,15 @@ python3 adb_agent.py \
                 if (data.status === 'completed') {
                     console.log('=== Task completed ===');
                     clearInterval(statusCheckInterval);
+                    hideErrorDiagnostics();
                     showResults(data.results);
                     analyzeBtn.innerHTML = '分析完成';
                     setSceneCardsLocked(false);
                     loadTaskList();
                 } else if (data.status === 'error') {
                     clearInterval(statusCheckInterval);
-                    alert('分析失败: ' + (data.error || '未知错误'));
+                    showErrorDiagnostics(data.error || '未知错误');
+                    showToast('分析失败，请查看诊断提示');
                     analyzeBtn.disabled = false;
                     analyzeBtn.textContent = '重新分析';
                     setSceneCardsLocked(false);
@@ -6671,6 +8347,39 @@ python3 adb_agent.py \
             }
 
             statusCheckInterval = setInterval(checkStatus, 1000);
+        }
+
+        function showErrorDiagnostics(message) {
+            if (!errorDiagnostics || !errorDiagnosticsMsg || !errorDiagnosticsList) return;
+            const msg = String(message || '未知错误').trim();
+            errorDiagnosticsMsg.textContent = `失败原因：${msg || '未知错误'}`;
+
+            const hints = [];
+            const lower = msg.toLowerCase();
+            if (lower.includes('timeout') || msg.includes('超时')) {
+                hints.push('任务可能超时：尝试缩小 bugreport 或在空闲时段重试。');
+            }
+            if (lower.includes('bugreport') || msg.includes('解析') || msg.includes('parse')) {
+                hints.push('解析失败：确认 bugreport 版本是否支持，是否缺少关键段落。');
+            }
+            if (lower.includes('zip') || msg.includes('压缩')) {
+                hints.push('压缩包异常：确认 zip 未损坏且文件结构正确。');
+            }
+            if (lower.includes('memory') || msg.includes('meminfo')) {
+                hints.push('内存数据异常：检查 bugreport 是否包含 meminfo/killinfo 段落。');
+            }
+            if (!hints.length) {
+                hints.push('建议：重新上传文件或更换分析场景后重试。');
+            }
+
+            errorDiagnosticsList.innerHTML = hints.map(item => `<li>${item}</li>`).join('');
+            errorDiagnostics.style.display = 'block';
+        }
+
+        function hideErrorDiagnostics() {
+            if (errorDiagnostics) {
+                errorDiagnostics.style.display = 'none';
+            }
         }
 
         // 检查任务状态
@@ -6745,18 +8454,123 @@ python3 adb_agent.py \
             loadMemoryAnalysis(currentTaskId);
         }
 
+        function parseTaskDate(ts) {
+            if (!ts) return null;
+            const parsed = new Date(ts);
+            if (!Number.isNaN(parsed.getTime())) return parsed;
+            const fallback = ts.replace(/-/g, '/');
+            const parsedFallback = new Date(fallback);
+            return Number.isNaN(parsedFallback.getTime()) ? null : parsedFallback;
+        }
+
+        function updateSceneFilterOptions(tasks) {
+            if (!taskFilterScene) return;
+            const scenes = new Set();
+            tasks.forEach(item => {
+                if (item && item.scene) scenes.add(item.scene);
+            });
+            const current = taskFilterScene.value;
+            const options = ['<option value="">全部场景</option>']
+                .concat(Array.from(scenes).sort().map(scene => `<option value="${scene}">${scene}</option>`))
+                .join('');
+            taskFilterScene.innerHTML = options;
+            if (current) {
+                const match = taskFilterScene.querySelector(`option[value="${current}"]`);
+                if (match) taskFilterScene.value = current;
+            }
+        }
+
+        function applyTaskFilters() {
+            if (taskFilterQuery) taskFilters.query = taskFilterQuery.value.trim();
+            if (taskFilterStatus) taskFilters.status = taskFilterStatus.value;
+            if (taskFilterScene) taskFilters.scene = taskFilterScene.value;
+            if (taskFilterStart) taskFilters.start = taskFilterStart.value;
+            if (taskFilterEnd) taskFilters.end = taskFilterEnd.value;
+            loadTaskList();
+        }
+
+        function resetTaskFilters() {
+            taskFilters.query = '';
+            taskFilters.status = '';
+            taskFilters.scene = '';
+            taskFilters.start = '';
+            taskFilters.end = '';
+            if (taskFilterQuery) taskFilterQuery.value = '';
+            if (taskFilterStatus) taskFilterStatus.value = '';
+            if (taskFilterScene) taskFilterScene.value = '';
+            if (taskFilterStart) taskFilterStart.value = '';
+            if (taskFilterEnd) taskFilterEnd.value = '';
+            loadTaskList();
+        }
+
+        function bindTaskFilters() {
+            const trigger = () => {
+                if (taskFilterTimer) clearTimeout(taskFilterTimer);
+                taskFilterTimer = setTimeout(() => {
+                    applyTaskFilters();
+                }, 200);
+            };
+            if (taskFilterQuery) taskFilterQuery.addEventListener('input', trigger);
+            if (taskFilterStatus) taskFilterStatus.addEventListener('change', trigger);
+            if (taskFilterScene) taskFilterScene.addEventListener('change', trigger);
+            if (taskFilterStart) taskFilterStart.addEventListener('change', trigger);
+            if (taskFilterEnd) taskFilterEnd.addEventListener('change', trigger);
+        }
+
+        function filterTasks(tasks) {
+            const query = taskFilters.query.toLowerCase();
+            const status = taskFilters.status;
+            const scene = taskFilters.scene;
+            const start = taskFilters.start ? new Date(taskFilters.start) : null;
+            const end = taskFilters.end ? new Date(taskFilters.end) : null;
+
+            return tasks.filter(item => {
+                if (!item) return false;
+                if (status && item.status !== status) return false;
+                if (scene && item.scene !== scene) return false;
+
+                const hay = [
+                    item.filename,
+                    item.scene,
+                    item.status,
+                    item.task_id,
+                ]
+                    .filter(Boolean)
+                    .join(' ')
+                    .toLowerCase();
+                if (query && !hay.includes(query)) return false;
+
+                if (start || end) {
+                    const parsed = parseTaskDate(item.created_at || item.createdAt || item.created_time || item.time || '');
+                    if (!parsed) return false;
+                    if (start && parsed < start) return false;
+                    if (end) {
+                        const endDate = new Date(end);
+                        endDate.setHours(23, 59, 59, 999);
+                        if (parsed > endDate) return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+
         // 加载任务列表
         async function loadTaskList() {
             try {
                 const response = await fetch('/api/tasks');
                 const tasks = await response.json();
                 window.tasksCache = tasks;
+                updateSceneFilterOptions(tasks);
+                updateHomeSummary(tasks);
 
-                if (tasks.length === 0) {
+                const visibleTasks = filterTasks(Array.isArray(tasks) ? tasks : []);
+
+                if (visibleTasks.length === 0) {
                     taskList.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon">暂无数据</div>
-                            <p>暂无分析任务</p>
+                            <p>暂无符合条件的任务</p>
                         </div>
                     `;
                     updateFooterStats();
@@ -6764,7 +8578,7 @@ python3 adb_agent.py \
                 }
 
                 let html = '';
-                tasks.forEach(task => {
+                visibleTasks.forEach(task => {
                     const statusClass = task.status;
                     const statusText = {
                         'uploaded': '待分析',
@@ -6775,18 +8589,30 @@ python3 adb_agent.py \
                     }[task.status] || task.status;
 
                     const isCompleted = task.status === 'completed';
-                    const isSelected = selectedTasks.includes(task.task_id);
+                    const isSelected = compareMode
+                        ? selectedTasks.includes(task.task_id)
+                        : selectedBatchTasks.includes(task.task_id);
                     const taskScene = task.scene || '未知';
                     const sceneAllowed = !compareTargetScene || taskScene === compareTargetScene || isSelected;
                     const limitReached = selectedTasks.length >= 2 && !isSelected;
                     const checkboxDisabled = (!sceneAllowed) || limitReached;
-                    const checkboxHtml = compareMode && isCompleted ? `
-                        <input type="checkbox" 
-                               style="margin-right: 15px; width: 18px; height: 18px; cursor: pointer;"
-                               ${isSelected ? 'checked' : ''}
-                               onchange="toggleTaskSelection('${task.task_id}', this.checked)"
-                               ${checkboxDisabled ? 'disabled' : ''}>
-                    ` : '';
+                    let checkboxHtml = '';
+                    if (compareMode && isCompleted) {
+                        checkboxHtml = `
+                            <input type="checkbox" 
+                                   style="margin-right: 15px; width: 18px; height: 18px; cursor: pointer;"
+                                   ${isSelected ? 'checked' : ''}
+                                   onchange="toggleTaskSelection('${task.task_id}', this.checked)"
+                                   ${checkboxDisabled ? 'disabled' : ''}>
+                        `;
+                    } else if (batchMode) {
+                        checkboxHtml = `
+                            <input type="checkbox" 
+                                   style="margin-right: 15px; width: 18px; height: 18px; cursor: pointer;"
+                                   ${isSelected ? 'checked' : ''}
+                                   onchange="toggleBatchSelection('${task.task_id}', this.checked)">
+                        `;
+                    }
 
                     html += `
                         <div class="task-item" style="${isSelected ? 'background: #e8eeff; border-left: 4px solid #667eea;' : ''}">
@@ -6809,6 +8635,9 @@ python3 adb_agent.py \
                 });
 
                 taskList.innerHTML = html;
+                if (batchMode && batchSelectedCount) {
+                    batchSelectedCount.textContent = `已选择 ${selectedBatchTasks.length}`;
+                }
                 updateFooterStats();
             } catch (error) {
                 console.error('加载任务列表失败:', error);
@@ -6817,6 +8646,9 @@ python3 adb_agent.py \
 
         // 启用对比模式
         function enableCompareMode() {
+            if (batchMode) {
+                exitBatchMode();
+            }
             compareMode = true;
             selectedTasks = [];
             compareTargetScene = null;
@@ -6834,6 +8666,100 @@ python3 adb_agent.py \
             document.getElementById('enableCompareBtn').style.display = 'block';
             document.getElementById('compareControls').style.display = 'none';
             loadTaskList();
+        }
+
+        function enableBatchMode() {
+            if (compareMode) {
+                clearSelection();
+            }
+            batchMode = true;
+            selectedBatchTasks = [];
+            if (batchControls) batchControls.style.display = 'flex';
+            if (enableBatchBtn) enableBatchBtn.style.display = 'none';
+            const compareBtn = document.getElementById('enableCompareBtn');
+            if (compareBtn) compareBtn.style.display = 'none';
+            if (batchSelectedCount) batchSelectedCount.textContent = '已选择 0';
+            loadTaskList();
+        }
+
+        function exitBatchMode() {
+            batchMode = false;
+            selectedBatchTasks = [];
+            if (batchControls) batchControls.style.display = 'none';
+            if (enableBatchBtn) enableBatchBtn.style.display = 'block';
+            const compareBtn = document.getElementById('enableCompareBtn');
+            if (compareBtn) compareBtn.style.display = 'block';
+            loadTaskList();
+        }
+
+        function toggleBatchSelection(taskId, checked) {
+            if (checked) {
+                if (!selectedBatchTasks.includes(taskId)) {
+                    selectedBatchTasks.push(taskId);
+                }
+            } else {
+                selectedBatchTasks = selectedBatchTasks.filter(id => id !== taskId);
+            }
+            if (batchSelectedCount) {
+                batchSelectedCount.textContent = `已选择 ${selectedBatchTasks.length}`;
+            }
+        }
+
+        async function batchDelete() {
+            if (!selectedBatchTasks.length) {
+                showToast('请先选择任务');
+                return;
+            }
+            if (!confirm(`确定要删除选中的 ${selectedBatchTasks.length} 个任务吗？`)) return;
+            const taskIds = [...selectedBatchTasks];
+            for (const id of taskIds) {
+                try {
+                    await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+                } catch (err) {
+                    console.error('批量删除失败:', err);
+                }
+            }
+            exitBatchMode();
+            loadTaskList();
+        }
+
+        function _triggerDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            if (filename) a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        function batchDownloadZip() {
+            if (!selectedBatchTasks.length) {
+                showToast('请先选择任务');
+                return;
+            }
+            selectedBatchTasks.forEach((id, idx) => {
+                setTimeout(() => {
+                    _triggerDownload(`/api/download/zip/${id}`);
+                }, idx * 250);
+            });
+        }
+
+        function batchExportList() {
+            if (!selectedBatchTasks.length) {
+                showToast('请先选择任务');
+                return;
+            }
+            const tasks = Array.isArray(window.tasksCache) ? window.tasksCache : [];
+            const selected = tasks.filter(t => selectedBatchTasks.includes(t.task_id));
+            const lines = ['# 批量任务清单', ''];
+            selected.forEach((t, idx) => {
+                lines.push(`${idx + 1}. ${t.filename || 'unknown'}`);
+                lines.push(`   - task_id: ${t.task_id || '-'}`);
+                lines.push(`   - 场景: ${t.scene || '-'}`);
+                lines.push(`   - 状态: ${t.status || '-'}`);
+                lines.push(`   - 创建时间: ${t.created_at || '-'}`);
+            });
+            downloadTextFile(`collie_tasks_${Date.now()}.md`, lines.join('\n'), 'text/markdown;charset=utf-8');
         }
 
         // 切换任务选择
@@ -7002,6 +8928,7 @@ python3 adb_agent.py \
             lastInterpretData = data;
             const text = String(data?.interpretation || '').trim();
             const formattedText = renderMarkdown(text || '未返回解读内容');
+            const summaryLines = buildInterpretSummary(text);
             const interpretedTaskId = String(data?.task_id || currentTaskId || '').trim();
 
             const meta = data?.meta || {};
@@ -7026,9 +8953,75 @@ python3 adb_agent.py \
                         ${downloadTxt ? `<a class="task-btn" href="${downloadTxt}">下载 TXT</a>` : ''}
                         ${downloadHtml ? `<a class="task-btn" href="${downloadHtml}">下载 HTML</a>` : ''}
                     </div>
+                    ${summaryLines.length ? `
+                        <div class="ai-summary-card">
+                            <h4>重点结论</h4>
+                            <ul>
+                                ${summaryLines.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
                     <div class="md-content">
                         ${formattedText}
                     </div>
+                </div>
+            `;
+        }
+
+        function buildComparisonMetricsTable(data) {
+            const metrics = data?.metrics || data?.stats || {};
+            const taskA = data?.task_1 || {};
+            const taskB = data?.task_2 || {};
+
+            const rows = [
+                { key: 'memory_peak_kb', label: '峰值内存(KB)' },
+                { key: 'kill_count', label: '被杀次数' },
+                { key: 'top_process', label: 'Top 进程' },
+            ];
+
+            const resolvedRows = rows.map(row => {
+                const aVal = metrics?.task_1?.[row.key]
+                    ?? taskA?.[row.key]
+                    ?? taskA?.stats?.[row.key]
+                    ?? '-';
+                const bVal = metrics?.task_2?.[row.key]
+                    ?? taskB?.[row.key]
+                    ?? taskB?.stats?.[row.key]
+                    ?? '-';
+                const diff = (aVal !== '-' && bVal !== '-' && !Number.isNaN(Number(aVal)) && !Number.isNaN(Number(bVal)))
+                    ? (Number(aVal) - Number(bVal))
+                    : '-';
+                return { label: row.label, aVal, bVal, diff };
+            });
+
+            const hasData = resolvedRows.some(row => row.aVal !== '-' || row.bVal !== '-');
+            const note = hasData ? '' : '<p class="muted" style="margin:0 0 10px;">暂无结构化指标，建议在分析产出中补充。</p>';
+
+            const tableRows = resolvedRows.map(row => `
+                <tr>
+                    <td>${escapeHtml(row.label)}</td>
+                    <td>${escapeHtml(String(row.aVal))}</td>
+                    <td>${escapeHtml(String(row.bVal))}</td>
+                    <td class="diff">${escapeHtml(String(row.diff))}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="comparison-metrics">
+                    ${note}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>指标</th>
+                                <th>报告 A</th>
+                                <th>报告 B</th>
+                                <th>差值</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
                 </div>
             `;
         }
@@ -7038,6 +9031,7 @@ python3 adb_agent.py \
             lastComparisonData = data;
             const comparisonText = data.comparison;
             const formattedText = renderMarkdown(comparisonText);
+            const metricsTable = buildComparisonMetricsTable(data);
 
             document.getElementById('comparisonContent').innerHTML = `
                 <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -7052,6 +9046,7 @@ python3 adb_agent.py \
                         <button class="task-btn view" onclick="exportComparisonToFeishu()">保存到飞书文档</button>
                         <span id="feishuExportStatus" style="font-size: 0.9em; color: #666;"></span>
                     </div>
+                    ${metricsTable}
                     <div class="md-content">
                         ${formattedText}
                     </div>
@@ -7183,6 +9178,7 @@ python3 adb_agent.py \
             analyzeBtn.textContent = '开始分析';
             progressContainer.classList.remove('active');
             resultsContainer.classList.remove('active');
+            hideErrorDiagnostics();
             resetMemoryAnalysisCard();
             resetMemoryAnalysisCard();
         }
@@ -7222,7 +9218,12 @@ python3 adb_agent.py \
         }
 
         // 页面加载时获取任务列表
+        initHomeGuide();
         initThemeSwitcher();
+        bindTaskFilters();
+        bindRefDocsEvents();
+        loadRefDocsList();
+        updateLastTemplateHint();
         loadTaskList();
         utilInstallInProgress = false;
         utilInstallAwaitingManualConfirm = false;

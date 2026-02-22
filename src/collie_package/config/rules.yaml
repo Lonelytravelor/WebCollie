@@ -118,6 +118,39 @@ app_died_monitor:
     - "adb shell dumpsys meminfo"
     - "adb shell cmd greezer getUids 9999"
   periodic_dumpsys_command: "adb shell dumpsys activity"
+
+persist_props_switches:
+  items:
+    - key: "persist.sys.integrated.memory.enable"
+      label: "集成内存管理"
+      desc: "集成内存管理总开关"
+      on_value: "true"
+      off_value: "false"
+      need_reboot: true
+    - key: "persist.sys.integrated.memory.pr.enable"
+      label: "集成内存 PR"
+      desc: "集成内存 PR 策略"
+      on_value: "true"
+      off_value: "false"
+      need_reboot: true
+    - key: "persist.sys.imr.kill.memfree.limit"
+      label: "IMR 清理阈值"
+      desc: "内存低于阈值触发清理"
+      on_value: "307200"
+      off_value: "0"
+      need_reboot: false
+    - key: "persist.sys.imr.zramuserate.limit"
+      label: "ZRAM 使用率阈值"
+      desc: "ZRAM 使用率限制"
+      on_value: "80"
+      off_value: "0"
+      need_reboot: false
+    - key: "persist.sys.imr.cpuload.limit"
+      label: "CPU 负载阈值"
+      desc: "CPU 负载超过阈值触发"
+      on_value: "50"
+      off_value: "0"
+      need_reboot: false
   periodic_dumpsys_count: 3
   periodic_dumpsys_interval: 10
   periodic_commands: []

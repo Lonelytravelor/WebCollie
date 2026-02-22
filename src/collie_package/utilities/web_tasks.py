@@ -370,6 +370,23 @@ def run_collect_device_meminfo(
     hooks.progress(100, "设备 meminfo 采集完成")
 
 
+def run_killinfo_line_parse(
+    line_text: str,
+    out_dir: Path,
+    hooks: TaskHooks,
+) -> None:
+    from collie_package.utilities.killinfo_line_parser import parse_kill_line_text
+
+    text = str(line_text or "").strip()
+    if not text:
+        raise RuntimeError("输入内容为空")
+
+    hooks.progress(10, "解析中")
+    report = parse_kill_line_text(text)
+    (out_dir / "killinfo_line_parse.txt").write_text(report + "\n", encoding="utf-8")
+    hooks.progress(100, "解析完成")
+
+
 def run_prepare_apps(
     packages: list,
     adb_runner: Callable[[list, int], str],
