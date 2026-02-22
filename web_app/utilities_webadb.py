@@ -407,6 +407,15 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
                 device_locks[key] = threading.Lock()
             return device_locks[key]
 
+    def _find_active_job_for_ip(client_ip):
+        with utilities_jobs_lock:
+            for job in utilities_jobs.values():
+                if job.get("ip") != client_ip:
+                    continue
+                if job.get("status") in {"queued", "running", "paused"}:
+                    return job
+        return None
+
     def _get_persist_state(device_id):
         key = device_id or "default"
         with persist_props_lock:
@@ -1222,16 +1231,20 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             return jsonify({"error": "缺少 action"}), 400
         if not isinstance(params, dict):
             return jsonify({"error": "params 必须是对象"}), 400
+        client_ip = get_client_ip()
+
+        active_job = _find_active_job_for_ip(client_ip)
+        if active_job:
+            return jsonify({"error": "已有任务进行中，当前不支持继续"}), 409
 
         if action in NO_DEVICE_ACTIONS:
             device_id = None
         else:
             try:
-                device_id = _resolve_device(req_device, owner_ip=get_client_ip())
+                device_id = _resolve_device(req_device, owner_ip=client_ip)
             except Exception as exc:
                 return jsonify({"error": str(exc)}), 400
 
-        client_ip = get_client_ip()
         user_folder = get_user_folder(client_ip)
         utilities_root = user_folder / "utilities"
         utilities_root.mkdir(parents=True, exist_ok=True)

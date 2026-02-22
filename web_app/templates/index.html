@@ -3848,7 +3848,7 @@ python3 adb_agent.py \
                             </div>
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button id="utilInstallActionBtn" class="analyze-btn" style="width:auto; margin:0; padding:10px 18px; font-size:0.95em;" onclick="handleInstallAction()">开始安装</button>
+                            <button id="utilInstallActionBtn" class="analyze-btn util-action-btn" style="width:auto; margin:0; padding:10px 18px; font-size:0.95em;" onclick="handleInstallAction()">开始安装</button>
                             <button class="task-btn" id="utilPauseBtn" onclick="pauseUtilityJob()" disabled>暂停</button>
                             <button class="task-btn" id="utilResumeBtn" onclick="resumeUtilityJob()" disabled>继续</button>
                             <button class="task-btn delete" onclick="cancelUtilityJob()">取消当前任务</button>
@@ -3884,7 +3884,7 @@ python3 adb_agent.py \
                         </div>
                         <div class="check-app-actions">
                             <div class="check-app-action-left">
-                                <button class="task-btn view" onclick="runCheckApp()">批量检查应用版本</button>
+                                <button class="task-btn view util-action-btn" onclick="runCheckApp()">批量检查应用版本</button>
                             </div>
                             <div class="check-app-action-right">
                                 <button id="utilToggleCheckPreviewBtn" class="task-btn" onclick="toggleCheckPresetPreview()">展开预设预览</button>
@@ -3931,7 +3931,7 @@ python3 adb_agent.py \
                         <div class="card-title">collect_device_meminfo（设备内存采集）</div>
                         <div class="muted">采集设备 getprop 与 dumpsys meminfo 原始信息。</div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="runQuickUtility('collect_device_meminfo_live', {})">开始采集</button>
+                            <button id="utilCollectMeminfoBtn" class="task-btn view util-action-btn" onclick="runQuickUtility('collect_device_meminfo_live', {})">开始采集</button>
                         </div>
                     </div>
                 </div>
@@ -3958,8 +3958,8 @@ python3 adb_agent.py \
                         </div>
                         <div class="check-app-actions">
                             <div class="check-app-action-left">
-                                <button class="task-btn view" onclick="runCompileApps()">执行编译</button>
-                                <button class="task-btn view" onclick="runPrepareApps()">执行预启动</button>
+                                <button class="task-btn view util-action-btn" onclick="runCompileApps()">执行编译</button>
+                                <button class="task-btn view util-action-btn" onclick="runPrepareApps()">执行预启动</button>
                             </div>
                             <div class="check-app-action-right">
                                 <button id="utilToggleCompilePreviewBtn" class="task-btn" onclick="toggleCompilePresetPreview()">展开预设预览</button>
@@ -3994,8 +3994,8 @@ python3 adb_agent.py \
                         <div class="card-title">meminfo_summary（内存摘要）</div>
                         <div class="muted">抓取并生成结构化 meminfo 摘要。</div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="runQuickUtility('meminfo_summary_live', {})">生成摘要</button>
-                            <button class="task-btn view" onclick="runQuickUtility('meminfo_live', {})">查看原始 meminfo</button>
+                            <button class="task-btn view util-action-btn" onclick="runQuickUtility('meminfo_summary_live', {})">生成摘要</button>
+                            <button class="task-btn view util-action-btn" onclick="runQuickUtility('meminfo_live', {})">查看原始 meminfo</button>
                         </div>
                     </div>
                 </div>
@@ -4011,7 +4011,7 @@ python3 adb_agent.py \
                             </div>
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="runKillinfoLineParse()">解析</button>
+                            <button class="task-btn view util-action-btn" onclick="runKillinfoLineParse()">解析</button>
                         </div>
                         <div id="utilKillLineResultWrap" style="margin-top:12px; display:none;">
                             <div class="muted" style="margin-bottom:6px;">解析结果</div>
@@ -4070,7 +4070,7 @@ python3 adb_agent.py \
                             </div>
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="runAppDiedMonitor()">开始监控</button>
+                            <button class="task-btn view util-action-btn" onclick="runAppDiedMonitor()">开始监控</button>
                             <button id="utilMonitorToggleBtn" class="task-btn" onclick="toggleMonitorPauseResume()" disabled>暂停监控</button>
                         </div>
                         <div class="preset-preview-card">
@@ -4096,7 +4096,7 @@ python3 adb_agent.py \
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="task-btn view" onclick="runCheckAppAliveByPackage()">按包名检查</button>
-                            <button class="task-btn view" onclick="runQuickUtility('meminfo_live', {})">查看全局 meminfo</button>
+                            <button class="task-btn view util-action-btn" onclick="runQuickUtility('meminfo_live', {})">查看全局 meminfo</button>
                         </div>
                     </div>
                 </div>
@@ -4174,7 +4174,7 @@ python3 adb_agent.py \
                         </div>
 
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="runContStartupStay()">启动连续启动-驻留</button>
+                            <button class="task-btn view util-action-btn" onclick="runContStartupStay()">启动连续启动-驻留</button>
                             <button class="task-btn" id="utilContPauseBtn" onclick="pauseUtilityJob()" disabled>暂停</button>
                             <button class="task-btn" id="utilContResumeBtn" onclick="resumeUtilityJob()" disabled>继续</button>
                             <button class="task-btn delete" onclick="cancelUtilityJob()">取消当前任务</button>
@@ -4220,7 +4220,7 @@ python3 adb_agent.py \
                             </div>
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="task-btn view" onclick="runPerfSimpleperf()">开始 simpleperf 抓取</button>
+                            <button class="task-btn view util-action-btn" onclick="runPerfSimpleperf()">开始 simpleperf 抓取</button>
                         </div>
                         <div style="margin-top:12px;">
                             <div id="utilPerfProgressText" class="muted">等待开始</div>
@@ -4386,6 +4386,7 @@ python3 adb_agent.py \
         let simpleperfLocalActive = false;
         let utilCurrentMonitorJobId = '';
         let utilityJobAction = '';
+        let utilGlobalBusy = false;
         let currentUtilitySubTab = 'app_install';
         const utilityTabStates = {};
         let memoryAnalysisData = null;
@@ -4680,6 +4681,8 @@ python3 adb_agent.py \
             updatePauseResumeButtons(state.status || '', !!state.paused);
             updateMonitorPauseResumeButtons(state.status || '', !!state.paused, state.action || '');
             updateContPauseResumeButtons(state.status || '', !!state.paused, state.action || '');
+            updateCollectMeminfoButton(state.status || '', state.action || '');
+            updateUtilityActionButtons(['queued', 'running', 'paused'].includes(state.status || ''));
         }
 
         function _bindUtilitySubTabContext(tabId) {
@@ -5705,6 +5708,7 @@ python3 adb_agent.py \
         const utilPresetPreview = document.getElementById('utilPresetPreview');
         const utilPresetMaxWait = document.getElementById('utilPresetMaxWait');
         const utilInstallInterval = document.getElementById('utilInstallInterval');
+        const utilCollectMeminfoBtn = document.getElementById('utilCollectMeminfoBtn');
         const utilPerfPackageSelect = document.getElementById('utilPerfPackageSelect');
         const utilPerfCustomWrap = document.getElementById('utilPerfCustomWrap');
         const utilPerfPackageCustom = document.getElementById('utilPerfPackageCustom');
@@ -5958,6 +5962,36 @@ python3 adb_agent.py \
                 utilPauseBtn.disabled = false;
                 utilResumeBtn.disabled = true;
             }
+        }
+
+        function updateCollectMeminfoButton(status, action) {
+            if (!utilCollectMeminfoBtn) return;
+            if (action !== 'collect_device_meminfo_live') {
+                utilCollectMeminfoBtn.disabled = false;
+                return;
+            }
+            const busy = ['queued', 'running', 'paused'].includes(status || '');
+            utilCollectMeminfoBtn.disabled = busy;
+        }
+
+        function updateUtilityActionButtons(busy) {
+            const buttons = document.querySelectorAll('.util-action-btn');
+            utilGlobalBusy = !!busy;
+            buttons.forEach((btn) => {
+                if (!btn) return;
+                if (busy) {
+                    if (!btn.dataset.label) {
+                        btn.dataset.label = btn.textContent || '';
+                    }
+                    btn.disabled = true;
+                    btn.textContent = '执行中...';
+                } else {
+                    btn.disabled = false;
+                    if (btn.dataset.label) {
+                        btn.textContent = btn.dataset.label;
+                    }
+                }
+            });
         }
 
         function updateMonitorPauseResumeButtons(status, paused, action) {
@@ -6997,6 +7031,11 @@ python3 adb_agent.py \
         }
 
         async function runPresetInstall() {
+            if (utilGlobalBusy) {
+                setUtilityStatus('已有任务进行中，当前不支持继续', true);
+                alert('已有任务进行中，当前不支持继续');
+                return;
+            }
             const presetName = (utilPresetSelect.value || '').trim();
             if (!presetName) {
                 setUtilityStatus('请先选择预设', true);
@@ -7052,6 +7091,7 @@ python3 adb_agent.py \
                 state.status = data.status || 'queued';
                 state.progress = 0;
                 setUtilityStatus(`任务已创建: ${utilityJobId}`);
+                updateUtilityActionButtons(true);
                 updatePauseResumeButtons('queued', false);
                 if (utilityPollTimer) clearInterval(utilityPollTimer);
                 utilityPollTimer = setInterval(_pollUtilityJob, 1200);
@@ -7060,6 +7100,7 @@ python3 adb_agent.py \
                 utilInstallInProgress = false;
                 utilInstallAwaitingManualConfirm = false;
                 _syncInstallActionButton();
+                updateUtilityActionButtons(false);
                 setUtilityStatus(`启动失败: ${err.message}`, true);
             }
         }
@@ -7197,6 +7238,8 @@ python3 adb_agent.py \
                 updatePauseResumeButtons(data.status, data.paused);
                 updateMonitorPauseResumeButtons(data.status, data.paused, data.action);
                 updateContPauseResumeButtons(data.status, data.paused, data.action);
+                updateCollectMeminfoButton(data.status, data.action);
+                updateUtilityActionButtons(['queued', 'running', 'paused'].includes(data.status || ''));
                 _renderUtilityFiles(pollingJobId, data.files || []);
                 _updateSimpleperfProgress(state);
                 _updateKillLineResult(state);
@@ -7214,6 +7257,7 @@ python3 adb_agent.py \
                     utilInstallInProgress = false;
                     _syncInstallActionButton();
                 }
+                updateUtilityActionButtons(false);
                 setUtilityStatus(`轮询失败: ${err.message}`, true);
                 clearInterval(utilityPollTimer);
                 utilityPollTimer = null;
@@ -7223,6 +7267,11 @@ python3 adb_agent.py \
         async function runUtilityActionWithPayload(action, params) {
             if (!action) {
                 alert('缺少 action');
+                return;
+            }
+            if (utilGlobalBusy) {
+                setUtilityStatus('已有任务进行中，当前不支持继续', true);
+                alert('已有任务进行中，当前不支持继续');
                 return;
             }
             const state = _getCurrentUtilityTabState();
@@ -7276,6 +7325,10 @@ python3 adb_agent.py \
                 state.status = data.status || 'queued';
                 state.progress = 0;
                 state.paused = false;
+                updateUtilityActionButtons(true);
+                if (action === 'collect_device_meminfo_live') {
+                    updateCollectMeminfoButton('running', action);
+                }
                 if (action === 'app_died_monitor') {
                     utilCurrentMonitorJobId = data.job_id;
                 }
@@ -7292,6 +7345,7 @@ python3 adb_agent.py \
                 if (action !== 'simpleperf_record') {
                     _appendUtilityLog([`[error] ${err.message || err}`], '[stderr] ');
                 }
+                updateUtilityActionButtons(false);
                 setUtilityStatus(`启动失败: ${err.message}`, true);
             }
         }
@@ -7433,6 +7487,11 @@ python3 adb_agent.py \
         }
 
         function runQuickUtility(action, params) {
+            if (utilGlobalBusy) {
+                setUtilityStatus('已有任务进行中，当前不支持继续', true);
+                alert('已有任务进行中，当前不支持继续');
+                return;
+            }
             runUtilityActionWithPayload(action, params || {});
         }
 
