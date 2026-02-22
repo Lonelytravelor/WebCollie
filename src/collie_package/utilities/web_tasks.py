@@ -389,6 +389,7 @@ def run_collect_device_meminfo(
     timeout_map = {
         "proc/meminfo": 120,
         "proc/vmstat": 120,
+        "proc/zoneinfo": 120,
         "dumpsys_procstats": 180,
         "dumpsys_meminfo": 180,
     }
@@ -398,17 +399,25 @@ def run_collect_device_meminfo(
         sections.append(f"# CMD: {shell_cmd}")
         timeout_sec = int(timeout_map.get(name, 60))
         try:
-            if name in {"proc/meminfo", "proc/vmstat"}:
-                proc_path = "/proc/meminfo" if name == "proc/meminfo" else "/proc/vmstat"
+            if name in {"proc/meminfo", "proc/vmstat", "proc/zoneinfo"}:
+                proc_path = {
+                    "proc/meminfo": "/proc/meminfo",
+                    "proc/vmstat": "/proc/vmstat",
+                    "proc/zoneinfo": "/proc/zoneinfo",
+                }[name]
                 output = adb_runner(["shell", "cat", proc_path], timeout_sec)
             else:
                 output = adb_runner(["shell", "sh", "-c", shell_cmd], timeout_sec)
             sections.append(output.rstrip("\n"))
         except Exception as exc:
             # 超时等错误尝试重试一次（仅对关键节点）
-            if name in {"proc/meminfo", "proc/vmstat"} and "超时" in str(exc):
+            if name in {"proc/meminfo", "proc/vmstat", "proc/zoneinfo"} and "超时" in str(exc):
                 try:
-                    proc_path = "/proc/meminfo" if name == "proc/meminfo" else "/proc/vmstat"
+                    proc_path = {
+                        "proc/meminfo": "/proc/meminfo",
+                        "proc/vmstat": "/proc/vmstat",
+                        "proc/zoneinfo": "/proc/zoneinfo",
+                    }[name]
                     output = adb_runner(["shell", "cat", proc_path], timeout_sec + 60)
                     sections.append(output.rstrip("\n"))
                     sections.append("")
