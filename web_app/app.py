@@ -139,42 +139,7 @@ def _build_mem_design_compare_report(file_a: str, file_b: str) -> str:
     lines_a = cad.load_file(file_a)
     lines_b = cad.load_file(file_b)
 
-    props_a = cad.parse_properties(lines_a)
-    props_b = cad.parse_properties(lines_b)
-
-    meminfo_a = cad.parse_meminfo_section(cad.extract_section(lines_a, 'proc/meminfo'))
-    meminfo_b = cad.parse_meminfo_section(cad.extract_section(lines_b, 'proc/meminfo'))
-
-    zoneinfo_a = cad.parse_zoneinfo_section(cad.extract_section(lines_a, 'proc/zoneinfo'))
-    zoneinfo_b = cad.parse_zoneinfo_section(cad.extract_section(lines_b, 'proc/zoneinfo'))
-
-    lsmod_a = cad.parse_lsmod_section(cad.extract_section(lines_a, 'lsmod'))
-    lsmod_b = cad.parse_lsmod_section(cad.extract_section(lines_b, 'lsmod'))
-
-    vm_sysctl_a = cad.parse_vm_sysctl_section(cad.extract_section(lines_a, 'vm_sysctl'))
-    vm_sysctl_b = cad.parse_vm_sysctl_section(cad.extract_section(lines_b, 'vm_sysctl'))
-
-    report_parts: List[str] = []
-    report_parts.append(
-        cad.generate_summary(
-            props_a,
-            props_b,
-            zoneinfo_a,
-            zoneinfo_b,
-            meminfo_a,
-            meminfo_b,
-        )
-    )
-    report_parts.append("====== 对比结果：内存配置 / 软件设计差异（表格版） ======\n")
-    report_parts.append(cad.compare_zone_sizes(zoneinfo_a, zoneinfo_b))
-    report_parts.append(cad.compare_zone_watermarks(zoneinfo_a, zoneinfo_b))
-    report_parts.append(cad.compare_meminfo(meminfo_a, meminfo_b))
-    report_parts.append(cad.compare_vm_sysctl(vm_sysctl_a, vm_sysctl_b))
-    report_parts.append(cad.compare_important_modules(lsmod_a, lsmod_b))
-    report_parts.append(cad.compare_properties(props_a, props_b))
-    report_parts.append(cad.analyze_hugepages(meminfo_a, meminfo_b))
-
-    return "\n".join(report_parts)
+    return cad.build_report_from_lines(lines_a, lines_b)
 
 def get_user_uploads_folder(ip):
     """获取用户上传目录"""

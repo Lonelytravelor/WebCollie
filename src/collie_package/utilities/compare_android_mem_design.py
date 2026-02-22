@@ -105,6 +105,9 @@ VM_TUNABLE_KEYS = list(_CMP_RULES.get(
     ],
 ))
 
+EXTRA_NODE_SECTIONS = list(_CMP_RULES.get('extra_node_sections', []))
+VMSTAT_KEYS = list(_CMP_RULES.get('vmstat_keys', []))
+
 
 # ------------ 通用表格工具 ------------
 
@@ -310,6 +313,55 @@ def parse_vm_sysctl_section(section_lines: List[str]) -> Dict[str, object]:
 
     return vm
 
+
+def parse_vmstat_section(section_lines: List[str]) -> Dict[str, int]:
+    """
+    解析 /proc/vmstat 为 { key: value(int) }。
+    """
+    data: Dict[str, int] = {}
+    for line in section_lines:
+        s = line.strip()
+        if not s:
+            continue
+        parts = s.split()
+        if len(parts) < 2:
+            continue
+        key = parts[0]
+        try:
+            val = int(parts[1])
+        except Exception:
+            continue
+        data[key] = val
+    return data
+
+
+def parse_kv_section(section_lines: List[str]) -> Dict[str, str]:
+    """
+    解析通用 key/value 节点：
+    - key = value
+    - key: value
+    - key value
+    """
+    data: Dict[str, str] = {}
+    for line in section_lines:
+        s = line.strip()
+        if not s or s.startswith("#") or s.startswith("-----"):
+            continue
+        if "=" in s:
+            key, val = s.split("=", 1)
+        elif ":" in s:
+            key, val = s.split(":", 1)
+        else:
+            parts = s.split()
+            if len(parts) < 2:
+                continue
+            key, val = parts[0], " ".join(parts[1:])
+        key = key.strip()
+        val = val.strip()
+        if key:
+            data[key] = val
+    return data
+
 def get_normal_watermarks(zones: Dict[str, Dict[str, int]]) -> Dict[str, int]:
     """
     从 zoneinfo 解析结果中找出 Normal zone 的 min/low/high。
@@ -479,6 +531,122 @@ def compare_vm_sysctl(vm_a: Dict[str, object], vm_b: Dict[str, object]) -> str:
         rows=rows,
         title="=== /proc/sys/vm 内存相关参数对比 ===",
     )
+
+
+def compare_vmstat(vmstat_a: Dict[str, int], vmstat_b: Dict[str, int]) -> str:
+    """
+    /proc/vmstat 对比：
+    Field | A | B | Diff
+    """
+    rows: List[List[str]] = []
+    if VMSTAT_KEYS:
+        keys = [k for k in VMSTAT_KEYS if k in vmstat_a or k in vmstat_b]
+    else:
+        keys = sorted(set(vmstat_a.keys()) | set(vmstat_b.keys()))
+    for key in keys:
+        va = vmstat_a.get(key)
+        vb = vmstat_b.get(key)
+        if va is None and vb is None:
+            continue
+        if va is None:
+            rows.append([key, "<missing>", str(vb), "N/A"])
+        elif vb is None:
+            rows.append([key, str(va), "<missing>", "N/A"])
+        else:
+            diff = vb - va
+            rows.append([key, str(va), str(vb), f"{diff:+d}"])
+    return make_table(
+        headers=["Field", "A", "B", "Diff"],
+        rows=rows,
+        title="=== /proc/vmstat 对比 ===",
+    )
+
+
+def compare_kv_nodes(label: str, data_a: Dict[str, str], data_b: Dict[str, str]) -> str:
+    """
+    通用节点对比（key/value）：
+    Field | A | B | Diff
+    """
+    rows: List[List[str]] = []
+    keys = sorted(set(data_a.keys()) | set(data_b.keys()))
+    for key in keys:
+        va = data_a.get(key)
+        vb = data_b.get(key)
+        if va is None and vb is None:
+            continue
+        a_str = "<missing>" if va is None else str(va)
+        b_str = "<missing>" if vb is None else str(vb)
+        diff_str = "N/A"
+        if va is not None and vb is not None:
+            try:
+                diff_str = f"{int(vb) - int(va):+d}"
+            except Exception:
+                diff_str = "N/A"
+        rows.append([key, a_str, b_str, diff_str])
+    if not rows:
+        return f"=== {label} 对比 ===\n(未采集到相关节点或无有效字段)\n\n"
+    return make_table(
+        headers=["Field", "A", "B", "Diff"],
+        rows=rows,
+        title=f"=== {label} 对比 ===",
+    )
+
+
+def build_report_from_lines(lines_a: List[str], lines_b: List[str]) -> str:
+    # 解析 properties / meminfo / zoneinfo
+    props_a = parse_properties(lines_a)
+    props_b = parse_properties(lines_b)
+
+    meminfo_a = parse_meminfo_section(extract_section(lines_a, "proc/meminfo"))
+    meminfo_b = parse_meminfo_section(extract_section(lines_b, "proc/meminfo"))
+
+    zoneinfo_a = parse_zoneinfo_section(extract_section(lines_a, "proc/zoneinfo"))
+    zoneinfo_b = parse_zoneinfo_section(extract_section(lines_b, "proc/zoneinfo"))
+
+    lsmod_a = parse_lsmod_section(extract_section(lines_a, "lsmod"))
+    lsmod_b = parse_lsmod_section(extract_section(lines_b, "lsmod"))
+
+    vm_sysctl_a = parse_vm_sysctl_section(extract_section(lines_a, "vm_sysctl"))
+    vm_sysctl_b = parse_vm_sysctl_section(extract_section(lines_b, "vm_sysctl"))
+    vmstat_a = parse_vmstat_section(extract_section(lines_a, "proc/vmstat"))
+    vmstat_b = parse_vmstat_section(extract_section(lines_b, "proc/vmstat"))
+
+    # 组装报告（全部为表格文本）
+    report_parts: List[str] = []
+
+    # Summary 放在最前面
+    report_parts.append(
+        generate_summary(
+            props_a, props_b,
+            zoneinfo_a, zoneinfo_b,
+            meminfo_a, meminfo_b,
+        )
+    )
+
+    report_parts.append("====== 对比结果：内存配置 / 软件设计差异（表格版） ======\n")
+    report_parts.append(compare_zone_sizes(zoneinfo_a, zoneinfo_b))
+    report_parts.append(compare_zone_watermarks(zoneinfo_a, zoneinfo_b))
+    report_parts.append(compare_meminfo(meminfo_a, meminfo_b))
+    report_parts.append(compare_vm_sysctl(vm_sysctl_a, vm_sysctl_b))
+    report_parts.append(compare_vmstat(vmstat_a, vmstat_b))
+    report_parts.append(compare_important_modules(lsmod_a, lsmod_b))
+    report_parts.append(compare_properties(props_a, props_b))
+    report_parts.append(analyze_hugepages(meminfo_a, meminfo_b))
+
+    # 额外节点配置
+    if EXTRA_NODE_SECTIONS:
+        for item in EXTRA_NODE_SECTIONS:
+            if not isinstance(item, dict):
+                continue
+            section = str(item.get("section") or item.get("name") or "").strip()
+            if not section:
+                continue
+            label = str(item.get("label") or section).strip()
+            data_a = parse_kv_section(extract_section(lines_a, section))
+            data_b = parse_kv_section(extract_section(lines_b, section))
+            report_parts.append(compare_kv_nodes(label, data_a, data_b))
+
+    return "\n".join(report_parts)
 
 
 def summarize_zone_layout(zones: Dict[str, Dict[str, int]], label: str) -> str:
@@ -844,50 +1012,7 @@ def main() -> None:
     lines_a = load_file(file_a)
     lines_b = load_file(file_b)
 
-    # 3. 解析 properties / meminfo / zoneinfo
-    props_a = parse_properties(lines_a)
-    props_b = parse_properties(lines_b)
-
-    meminfo_a = parse_meminfo_section(extract_section(lines_a, "proc/meminfo"))
-    meminfo_b = parse_meminfo_section(extract_section(lines_b, "proc/meminfo"))
-
-    zoneinfo_a = parse_zoneinfo_section(extract_section(lines_a, "proc/zoneinfo"))
-    zoneinfo_b = parse_zoneinfo_section(extract_section(lines_b, "proc/zoneinfo"))
-
-    lsmod_a = parse_lsmod_section(extract_section(lines_a, "lsmod"))
-    lsmod_b = parse_lsmod_section(extract_section(lines_b, "lsmod"))
-
-    vm_sysctl_a = parse_vm_sysctl_section(extract_section(lines_a, "vm_sysctl"))
-    vm_sysctl_b = parse_vm_sysctl_section(extract_section(lines_b, "vm_sysctl"))
-
-
-    # 4. 组装报告（全部为表格文本）
-    report_parts: List[str] = []
-
-    # 4.1 Summary 放在最前面，按条简要总结差异
-    report_parts.append(
-        generate_summary(
-            props_a, props_b,
-            zoneinfo_a, zoneinfo_b,
-            meminfo_a, meminfo_b,
-        )
-    )
-
-
-    report_parts.append("====== 对比结果：内存配置 / 软件设计差异（表格版） ======\n")
-
-    # report_parts.append(summarize_zone_layout(zoneinfo_a, "设备 A"))
-    # report_parts.append(summarize_zone_layout(zoneinfo_b, "设备 B"))
-    report_parts.append(compare_zone_sizes(zoneinfo_a, zoneinfo_b))
-    report_parts.append(compare_zone_watermarks(zoneinfo_a, zoneinfo_b))
-    # KO / 模块对比（先重点、再全量）
-    report_parts.append(compare_meminfo(meminfo_a, meminfo_b))
-    report_parts.append(compare_vm_sysctl(vm_sysctl_a, vm_sysctl_b))
-    report_parts.append(compare_important_modules(lsmod_a, lsmod_b))
-    report_parts.append(compare_properties(props_a, props_b))
-    report_parts.append(analyze_hugepages(meminfo_a, meminfo_b))
-
-    report = "\n".join(report_parts)
+    report = build_report_from_lines(lines_a, lines_b)
 
     # 5. 默认生成输出文件
     if args.output:

@@ -90,6 +90,10 @@ MEMORY_COMMANDS: Dict[str, str] = {
 
     # ===== KO / 模块列表 =====
     "lsmod": "lsmod 2>/dev/null || cat /proc/modules 2>/dev/null || echo 'no lsmod or /proc/modules'",
+
+    # ===== 内存相关节点（连续启动基线） =====
+    "greclaim_parm": "cat /sys/kernel/mi_reclaim/greclaim_parm 2>/dev/null || echo 'no greclaim_parm'",
+    "process_use_count": "cat /sys/kernel/mi_mempool/process_use_count 2>/dev/null || echo 'no process_use_count'",
 }
 
 

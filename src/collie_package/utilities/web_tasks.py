@@ -363,11 +363,44 @@ def run_collect_device_meminfo(
     adb_runner: Callable[[list, int], str],
     hooks: TaskHooks,
 ) -> None:
-    getprop = adb_runner(["shell", "getprop"], 180)
-    meminfo = adb_runner(["shell", "dumpsys", "meminfo"], 180)
-    text = f"# device_id: {device_id}\n\n## getprop\n{getprop}\n\n## dumpsys meminfo\n{meminfo}"
+    from collie_package.utilities.collect_device_meminfo import MEMORY_COMMANDS
+
+    hooks.progress(5, "采集 getprop")
+    raw = adb_runner(["shell", "getprop"], 180)
+    prop_lines = ["===== PROPERTIES START ====="]
+    if raw.startswith("<ERROR:"):
+        prop_lines.append(raw)
+    else:
+        for line in raw.splitlines():
+            s = line.strip()
+            if not s:
+                continue
+            if "]: [" in s and s.startswith("[") and s.endswith("]"):
+                inner = s[1:-1]
+                key, val = inner.split("]: [", 1)
+                prop_lines.append(f"{key} = {val}")
+            else:
+                prop_lines.append(s)
+    prop_lines.append("===== PROPERTIES END =====\n")
+
+    hooks.progress(15, "采集内存相关信息")
+    sections = ["===== MEMORY INFO START ====="]
+    total = max(1, len(MEMORY_COMMANDS))
+    for idx, (name, shell_cmd) in enumerate(MEMORY_COMMANDS.items(), start=1):
+        hooks.progress(15 + int(80 * (idx / total)), f"采集 {name}")
+        sections.append(f"----- SECTION: {name} -----")
+        sections.append(f"# CMD: {shell_cmd}")
+        try:
+            output = adb_runner(["shell", "sh", "-c", shell_cmd], 180)
+            sections.append(output.rstrip("\n"))
+        except Exception as exc:
+            sections.append(f"<ERROR: cmd failed: {exc}>")
+        sections.append("")
+    sections.append("===== MEMORY INFO END =====\n")
+
+    text = "\n".join([f"# device_id: {device_id}\n", *prop_lines, *sections])
     (out_dir / "collect_device_meminfo.txt").write_text(text, encoding="utf-8")
-    hooks.progress(100, "设备 meminfo 采集完成")
+    hooks.progress(100, "设备内存信息采集完成")
 
 
 def run_killinfo_line_parse(
