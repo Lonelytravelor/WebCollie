@@ -386,15 +386,37 @@ def run_collect_device_meminfo(
     hooks.progress(15, "采集内存相关信息")
     sections = ["===== MEMORY INFO START ====="]
     total = max(1, len(MEMORY_COMMANDS))
+    timeout_map = {
+        "proc/meminfo": 120,
+        "proc/vmstat": 120,
+        "dumpsys_procstats": 180,
+        "dumpsys_meminfo": 180,
+    }
     for idx, (name, shell_cmd) in enumerate(MEMORY_COMMANDS.items(), start=1):
         hooks.progress(15 + int(80 * (idx / total)), f"采集 {name}")
         sections.append(f"----- SECTION: {name} -----")
         sections.append(f"# CMD: {shell_cmd}")
+        timeout_sec = int(timeout_map.get(name, 60))
         try:
-            output = adb_runner(["shell", "sh", "-c", shell_cmd], 180)
+            if name in {"proc/meminfo", "proc/vmstat"}:
+                proc_path = "/proc/meminfo" if name == "proc/meminfo" else "/proc/vmstat"
+                output = adb_runner(["shell", "cat", proc_path], timeout_sec)
+            else:
+                output = adb_runner(["shell", "sh", "-c", shell_cmd], timeout_sec)
             sections.append(output.rstrip("\n"))
         except Exception as exc:
-            sections.append(f"<ERROR: cmd failed: {exc}>")
+            # 超时等错误尝试重试一次（仅对关键节点）
+            if name in {"proc/meminfo", "proc/vmstat"} and "超时" in str(exc):
+                try:
+                    proc_path = "/proc/meminfo" if name == "proc/meminfo" else "/proc/vmstat"
+                    output = adb_runner(["shell", "cat", proc_path], timeout_sec + 60)
+                    sections.append(output.rstrip("\n"))
+                    sections.append("")
+                    continue
+                except Exception as exc2:
+                    sections.append(f"<ERROR: cmd failed: {exc2}>")
+            else:
+                sections.append(f"<ERROR: cmd failed: {exc}>")
         sections.append("")
     sections.append("===== MEMORY INFO END =====\n")
 
