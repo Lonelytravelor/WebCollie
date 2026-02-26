@@ -5331,7 +5331,22 @@ python3 adb_agent.py \
                 ? memoryAnalysisData.highlight_processes
                 : (Array.isArray(memoryAnalysisData.available_processes) ? memoryAnalysisData.available_processes : []);
                 const aliveRows = [];
-                highlightList.forEach((proc) => {
+                const orderList = highlightList.slice();
+                let anchorProc = '';
+                let anchorIdx = -1;
+                if (killTimeMs) {
+                    const startCandidates = timeline
+                        .filter((e) => e.type === 'start' && e.time_ts && e.time_ts <= killTimeMs)
+                        .filter((e) => orderList.includes(e.process));
+                    if (startCandidates.length) {
+                        startCandidates.sort((a, b) => a.time_ts - b.time_ts);
+                        const anchor = startCandidates[startCandidates.length - 1];
+                        anchorProc = anchor.process;
+                        anchorIdx = orderList.indexOf(anchorProc);
+                    }
+                }
+
+                orderList.forEach((proc) => {
                     if (!killTimeMs) return;
                     const procEvents = timeline.filter((e) => e.process === proc && e.time_ts && e.time_ts <= killTimeMs);
                     const lastStart = [...procEvents].reverse().find((e) => e.type === 'start');
@@ -5343,16 +5358,27 @@ python3 adb_agent.py \
                     if (lastStart.launch_source) reasonParts.push(`来源:${lastStart.launch_source}`);
                     if (lastStart.had_proc_start) reasonParts.push('有进程启动');
                     reasonParts.push('启动后未出现 kill/lmk');
+                    let order = '-';
+                    if (anchorIdx >= 0) {
+                        const n = orderList.length;
+                        const idx = orderList.indexOf(proc);
+                        if (idx >= 0 && n > 0) {
+                            order = ((anchorIdx - idx + n) % n) + 1;
+                        }
+                    }
                     aliveRows.push({
                         process: proc,
                         startTime: lastStart.time || '-',
                         startTs: lastStart.time_ts || 0,
+                        order: order,
+                        anchor: anchorProc,
                         reason: reasonParts.join(' · '),
                     });
                 });
-                aliveRows.sort((a, b) => a.startTs - b.startTs);
-                aliveRows.forEach((row, idx) => {
-                    row.order = aliveRows.length - idx;
+                aliveRows.sort((a, b) => {
+                    const ao = Number.isFinite(Number(a.order)) ? Number(a.order) : 1e9;
+                    const bo = Number.isFinite(Number(b.order)) ? Number(b.order) : 1e9;
+                    return ao - bo;
                 });
                 if (memoryDetailAlive) {
                     if (!aliveRows.length) {
@@ -5364,9 +5390,13 @@ python3 adb_agent.py \
                                     <div class="memory-detail-label">存活数量</div>
                                     <div class="memory-detail-value">${aliveRows.length}</div>
                                 </div>
+                                <div class="memory-detail-row">
+                                    <div class="memory-detail-label">最近启动锚点</div>
+                                    <div class="memory-detail-value">${escapeHtml(aliveRows[0].anchor || anchorProc || '-')}</div>
+                                </div>
                             </div>`,
                             ...aliveRows.map((row) => (
-                            `<div class="memory-detail-pill"><strong>前${row.order}个应用 ${escapeHtml(row.process)}</strong><span>${escapeHtml(row.startTime)}</span><span>${escapeHtml(row.reason)}</span></div>`
+                            `<div class="memory-detail-pill"><strong>前${escapeHtml(String(row.order))}个应用 ${escapeHtml(row.process)}</strong><span>${escapeHtml(row.startTime)}</span><span>${escapeHtml(row.reason)}</span></div>`
                             )),
                         ];
                         memoryDetailAlive.innerHTML = html.join('');
