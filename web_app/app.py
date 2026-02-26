@@ -61,6 +61,99 @@ DOCS_DIR = project_root / 'docs'
 
 tasks = {}
 tasks_lock = threading.Lock()
+stats_lock = threading.Lock()
+GLOBAL_STATS_FILENAME = '_global_stats.json'
+
+
+def _get_global_stats_path() -> Path:
+    data_root = Path(str(current_app.config.get('DATA_FOLDER') or data_folder))
+    return data_root / GLOBAL_STATS_FILENAME
+
+
+def _compute_initial_total_ops(data_root: Path) -> int:
+    if not data_root.exists() or not data_root.is_dir():
+        return 0
+    total = 0
+    for user_dir in data_root.iterdir():
+        if not user_dir.is_dir():
+            continue
+        for sub_name in ('results', 'utilities', 'rd_mem_compare'):
+            sub_dir = user_dir / sub_name
+            if not sub_dir.exists() or not sub_dir.is_dir():
+                continue
+            for item in sub_dir.iterdir():
+                if item.is_dir():
+                    try:
+                        if any(item.iterdir()):
+                            total += 1
+                    except Exception:
+                        continue
+    return total
+
+
+def _load_global_stats(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        data_root = Path(str(current_app.config.get('DATA_FOLDER') or data_folder))
+        initial_total = _compute_initial_total_ops(data_root)
+        stats = {'total_ops': int(initial_total), 'updated_at': ''}
+        _save_global_stats(path, stats)
+        return stats
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return {'total_ops': 0, 'updated_at': ''}
+        return data
+    except Exception:
+        return {'total_ops': 0, 'updated_at': ''}
+
+
+def _save_global_stats(path: Path, data: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix('.tmp')
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    tmp_path.replace(path)
+
+
+def _bump_global_ops(delta: int = 1) -> int:
+    if delta <= 0:
+        return 0
+    with stats_lock:
+        stats_path = _get_global_stats_path()
+        stats = _load_global_stats(stats_path)
+        total = int(stats.get('total_ops') or 0)
+        total += int(delta)
+        stats['total_ops'] = total
+        stats['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        _save_global_stats(stats_path, stats)
+        return total
+
+
+def _has_user_activity(user_folder: Path) -> bool:
+    for name in ('uploads', 'results', 'utilities', 'rd_mem_compare'):
+        sub = user_folder / name
+        if not sub.exists() or not sub.is_dir():
+            continue
+        try:
+            for _ in sub.iterdir():
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _count_online_ips() -> int:
+    data_root = Path(str(current_app.config.get('DATA_FOLDER') or data_folder))
+    if not data_root.exists() or not data_root.is_dir():
+        return 0
+    count = 0
+    for item in data_root.iterdir():
+        if not item.is_dir():
+            continue
+        if _has_user_activity(item):
+            count += 1
+    return count
 
 
 def create_app(test_config=None):
@@ -86,7 +179,7 @@ def create_app(test_config=None):
     app.config['DATA_FOLDER'] = str(data_folder)
 
     app.register_blueprint(bp)
-    register_utilities_routes(app, get_client_ip, get_user_folder)
+    register_utilities_routes(app, get_client_ip, get_user_folder, _bump_global_ops)
     return app
 
 def get_client_ip():
@@ -800,6 +893,8 @@ def upload_file():
             'progress': 0,
             'message': '文件已上传，等待分析'
         }
+
+    _bump_global_ops(1)
     
     return jsonify({
         'task_id': task_id,
@@ -846,6 +941,8 @@ def rd_mem_design_compare():
     output_path = job_dir / output_name
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(report_text)
+
+    _bump_global_ops(1)
 
     return jsonify({
         'job_id': job_id,
@@ -1617,6 +1714,18 @@ def debug_ip():
     })
 
 
+@bp.route('/api/stats')
+def api_stats():
+    stats_path = _get_global_stats_path()
+    stats = _load_global_stats(stats_path)
+    total_ops = int(stats.get('total_ops') or 0)
+    return jsonify({
+        'online_ips': _count_online_ips(),
+        'total_ops': total_ops,
+        'updated_at': stats.get('updated_at', ''),
+    })
+
+
 @bp.route('/api/tasks')
 def list_tasks():
     client_ip = get_client_ip()
@@ -2004,6 +2113,7 @@ def compare_tasks():
             txt_content2
         )
         
+        _bump_global_ops(1)
         return jsonify({
             'status': 'success',
             'comparison': comparison_result,
@@ -2142,6 +2252,8 @@ def interpret_task():
     md_path.write_text(md_content, encoding='utf-8')
     txt_path.write_text(txt_content, encoding='utf-8')
     html_path.write_text(preview_html, encoding='utf-8')
+
+    _bump_global_ops(1)
 
     return jsonify({
         'status': 'success',

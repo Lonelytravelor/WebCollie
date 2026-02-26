@@ -89,7 +89,7 @@ def get_adb_executor():
     return SubprocessAdbExecutor()
 
 
-def register_utilities_routes(app, get_client_ip, get_user_folder):
+def register_utilities_routes(app, get_client_ip, get_user_folder, bump_global_ops=None):
     bp = Blueprint("utilities_webadb", __name__)
 
     adb_exec = get_adb_executor()
@@ -1292,6 +1292,9 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
         worker = threading.Thread(target=_run_job_thread, args=(job_id,), daemon=True)
         worker.start()
 
+        if bump_global_ops:
+            bump_global_ops(1)
+
         return jsonify({"job_id": job_id, "status": "queued"})
 
     @bp.route("/api/utilities/check-app/history")
@@ -1451,6 +1454,9 @@ def register_utilities_routes(app, get_client_ip, get_user_folder):
             )
         except Exception as exc:
             return jsonify({"error": str(exc)}), 400
+
+        if bump_global_ops:
+            bump_global_ops(1)
 
         return jsonify(
             {

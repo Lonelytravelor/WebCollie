@@ -332,6 +332,17 @@ AM_KILL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+AM_KILLING_PATTERN = re.compile(
+    _PATTERNS.get(
+        "am_killing",
+        r'(?P<ts>\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?)'
+        r'.*?ActivityManager:\s*Killing\s+'
+        r'(?P<pid>\d+):(?P<process>[^\s/]+)'
+        r'(?:/(?P<uid>[^\s]+))?\s*\((?P<tail>[^)]*)\)\s*:\s*(?P<reason>.+)$',
+    ),
+    re.IGNORECASE,
+)
+
 AM_PROC_START_PATTERN = re.compile(
     _PATTERNS.get(
         "am_proc_start",
@@ -472,6 +483,22 @@ def _base_name(name: str) -> str:
     if not isinstance(name, str):
         return ""
     return name.split(":")[0]
+
+
+def _ordered_startup_list() -> List[str]:
+    """按配置的启动顺序返回主包名列表（去重）。"""
+    source = STARTUP_SEQUENCE if STARTUP_SEQUENCE else list(HIGHLIGHT_PROCESSES)
+    ordered = []
+    seen = set()
+    for pkg in source:
+        base = _base_name(pkg)
+        if not _looks_like_package(base):
+            continue
+        if base in seen:
+            continue
+        seen.add(base)
+        ordered.append(base)
+    return ordered
 
 
 def _find_nearest_proc_start(
@@ -922,6 +949,44 @@ def parse_log_file(file_path, start_time: Optional[datetime] = None, end_time: O
                 })
                 continue
 
+            # 解析 ActivityManager: Killing 行（bugreport 常见）
+            am_killing_match = AM_KILLING_PATTERN.search(line)
+            if am_killing_match:
+                ts = am_killing_match.group("ts")
+                ts_obj = _parse_ts(ts, current_year) or datetime.now()
+                if not _within_time_range(ts_obj, start_time, end_time):
+                    continue
+                pid = am_killing_match.group("pid") or ""
+                proc = am_killing_match.group("process") or ""
+                uid = am_killing_match.group("uid") or ""
+                tail = am_killing_match.group("tail") or ""
+                reason = (am_killing_match.group("reason") or "").strip()
+                adj_match = re.search(r"(?:adj|oom_adj|oom_score_adj)\s*(-?\d+)", tail)
+                adj = adj_match.group(1) if adj_match else ""
+                if reason.lower() == "onekeyclean":
+                    continue
+                events.append({
+                    'time': ts_obj,
+                    'type': 'am_kill',
+                    'process_name': proc.split(':')[0] if ':' in proc else proc,
+                    'full_name': proc,
+                    'is_subprocess': ':' in proc,
+                    'raw': line,
+                    'details': {
+                        'payload': '',
+                        'raw_fields': [],
+                        'uid': uid,
+                        'pid': pid,
+                        'process_name': proc,
+                        'adj': adj,
+                        'reason': reason,
+                        'pss_kb': '',
+                        'priority': adj,
+                        'tail': tail.strip(),
+                    }
+                })
+                continue
+
             displayed_match = DISPLAYED_PATTERN.search(line)
             if displayed_match:
                 ts = displayed_match.group("ts")
@@ -1358,12 +1423,15 @@ def merge_kill_amkill(events, window_seconds: int = 3):
     则将 am_kill 转化为 kill 事件参与统计。
     """
     kill_events = []
+    lmk_events = []
     am_only_events = []
     result = []
 
     for e in events:
         if e.get('type') == 'kill':
             kill_events.append(e)
+        elif e.get('type') == 'lmk':
+            lmk_events.append(e)
         elif e.get('type') == 'am_kill':
             am_only_events.append(e)
         else:
@@ -1398,6 +1466,30 @@ def merge_kill_amkill(events, window_seconds: int = 3):
             if 'am_kill' not in best['details'].get('sources', []):
                 best['details']['sources'].append('am_kill')
             best['details']['am_kill'] = am['details']
+            continue
+
+        lmk_best = None
+        lmk_best_delta = None
+        for l in lmk_events:
+            l_pid = str((l.get('details') or {}).get('pid', '')).strip()
+            l_base = _base(l.get('process_name'))
+            if am_pid and l_pid and am_pid == l_pid:
+                pass
+            elif am_base and l_base and am_base == l_base:
+                pass
+            else:
+                continue
+            delta = abs((l['time'] - am_time).total_seconds())
+            if delta <= window_seconds and (lmk_best_delta is None or delta < lmk_best_delta):
+                lmk_best = l
+                lmk_best_delta = delta
+
+        if lmk_best:
+            lmk_best['details'].setdefault('sources', ['lmk'])
+            if 'am_kill' not in lmk_best['details'].get('sources', []):
+                lmk_best['details']['sources'].append('am_kill')
+            lmk_best['details']['am_kill'] = am['details']
+            continue
         else:
             # 转化为 kill 事件以参与统计
             details = am['details']
@@ -1452,6 +1544,7 @@ def merge_kill_amkill(events, window_seconds: int = 3):
             result.append(kill_event)
 
     result.extend(kill_events)
+    result.extend(lmk_events)
     result.sort(key=lambda x: x['time'])
     return result
 
@@ -2032,6 +2125,20 @@ def compute_summary_data(events):
                     state['durations'].append(duration)
                     summary['highlight_residency_stats']['all_durations'].append(duration)
                 summary['highlight_residency_stats']['alive_now'].append(base)
+        # 按启动列表顺序整理“当前仍存活”
+        alive_now = summary['highlight_residency_stats'].get('alive_now', [])
+        if alive_now:
+            order = _ordered_startup_list()
+            order_map = {pkg: i for i, pkg in enumerate(order)}
+            uniq = []
+            seen = set()
+            for pkg in alive_now:
+                if pkg in seen:
+                    continue
+                seen.add(pkg)
+                uniq.append(pkg)
+            uniq.sort(key=lambda x: (order_map.get(x, 10**9), x))
+            summary['highlight_residency_stats']['alive_now'] = uniq
 
     # 计算平均驻留
     all_durations = summary['highlight_residency_stats']['all_durations']
@@ -6488,9 +6595,9 @@ def extract_kill_focus_bugreport_context(
     if event_type == "lmk":
         type_keywords = ["lowmemorykiller"]
     elif event_type == "kill":
-        type_keywords = ["am_kill", "killinfo"]
+        type_keywords = ["am_kill", "killinfo", "activitymanager: killing"]
     else:
-        type_keywords = ["am_kill", "killinfo", "lowmemorykiller"]
+        type_keywords = ["am_kill", "killinfo", "lowmemorykiller", "activitymanager: killing"]
 
     if center_idx < 0:
         for idx, line in enumerate(lines):
@@ -6780,7 +6887,16 @@ def _infer_background_app_state(
             }
         )
 
-    alive_apps = sorted(alive_latest.keys())
+    order_list = _ordered_startup_list()
+    order_map = {pkg: i for i, pkg in enumerate(order_list)}
+    rows = sorted(rows, key=lambda r: (order_map.get(r.get("process", ""), 10**9), r.get("seq", 0)))
+    for idx, row in enumerate(rows, start=1):
+        row["seq"] = idx
+
+    alive_apps = [pkg for pkg in order_list if pkg in alive_latest]
+    if len(alive_apps) < len(alive_latest):
+        extra = sorted([pkg for pkg in alive_latest.keys() if pkg not in order_map])
+        alive_apps.extend(extra)
     return rows, alive_apps
 
 

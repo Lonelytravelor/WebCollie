@@ -225,7 +225,7 @@ def _probe_root(adb: AdbLike) -> tuple[bool, str, str]:
 
 
 def _probe_test(adb: AdbLike, test_expr: str) -> bool:
-    res = adb.shell(f'sh -c {json.dumps(test_expr)}', timeout_sec=10)
+    res = adb.shell(test_expr, timeout_sec=10)
     return res.returncode == 0
 
 

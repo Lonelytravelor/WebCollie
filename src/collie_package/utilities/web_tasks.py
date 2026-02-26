@@ -390,6 +390,11 @@ def run_collect_device_meminfo(
         "proc/meminfo": 120,
         "proc/vmstat": 120,
         "proc/zoneinfo": 120,
+        "proc/buddyinfo": 120,
+        "proc/pagetypeinfo": 120,
+        "proc/slabinfo": 120,
+        "proc/swaps": 60,
+        "thp_enabled": 60,
         "dumpsys_procstats": 180,
         "dumpsys_meminfo": 180,
     }
@@ -399,26 +404,166 @@ def run_collect_device_meminfo(
         sections.append(f"# CMD: {shell_cmd}")
         timeout_sec = int(timeout_map.get(name, 60))
         try:
-            if name in {"proc/meminfo", "proc/vmstat", "proc/zoneinfo"}:
+            if name in {"proc/meminfo", "proc/vmstat", "proc/zoneinfo", "proc/buddyinfo"}:
                 proc_path = {
                     "proc/meminfo": "/proc/meminfo",
                     "proc/vmstat": "/proc/vmstat",
                     "proc/zoneinfo": "/proc/zoneinfo",
+                    "proc/buddyinfo": "/proc/buddyinfo",
                 }[name]
                 output = adb_runner(["shell", "cat", proc_path], timeout_sec)
+            elif name in {"proc/pagetypeinfo", "proc/slabinfo", "proc/swaps"}:
+                proc_path = {
+                    "proc/pagetypeinfo": "/proc/pagetypeinfo",
+                    "proc/slabinfo": "/proc/slabinfo",
+                    "proc/swaps": "/proc/swaps",
+                }[name]
+                output = adb_runner(["shell", "cat", proc_path], timeout_sec)
+            elif name == "thp_enabled":
+                output = adb_runner(
+                    ["shell", "cat", "/sys/kernel/mm/transparent_hugepage/enabled"],
+                    timeout_sec,
+                )
+            elif name == "vm_sysctl":
+                sysctl_files = [
+                    "min_free_kbytes",
+                    "extra_free_kbytes",
+                    "watermark_scale_factor",
+                    "watermark_boost_factor",
+                    "lowmem_reserve_ratio",
+                    "swappiness",
+                    "vfs_cache_pressure",
+                    "dirty_background_ratio",
+                    "dirty_ratio",
+                    "dirty_background_bytes",
+                    "dirty_bytes",
+                    "overcommit_memory",
+                    "overcommit_ratio",
+                    "zone_reclaim_mode",
+                    "min_slab_ratio",
+                    "min_unmapped_ratio",
+                    "percpu_pagelist_fraction",
+                    "compact_unevictable_allowed",
+                    "compact_defer_shift",
+                    "dirty_expire_centisecs",
+                    "dirty_writeback_centisecs",
+                    "page-cluster",
+                    "compact_memory",
+                    "compaction_proactiveness",
+                    "extfrag_threshold",
+                    "max_map_count",
+                    "laptop_mode",
+                    "oom_kill_allocating_task",
+                    "panic_on_oom",
+                    "stat_interval",
+                ]
+                lines = ["## /proc/sys/vm core settings"]
+                for f in sysctl_files:
+                    key = f"vm.{f}"
+                    try:
+                        val = adb_runner(["shell", "cat", f"/proc/sys/vm/{f}"], 10).strip()
+                        if val:
+                            lines.append(f"{key} = {val}")
+                    except Exception:
+                        continue
+                output = "\n".join(lines)
+            elif name == "zram_conf":
+                lines = []
+                try:
+                    entries = adb_runner(["shell", "ls", "/sys/block"], 10).splitlines()
+                except Exception:
+                    entries = []
+                zram_devs = [e.strip() for e in entries if e.strip().startswith("zram")]
+                if not zram_devs:
+                    output = "no zram"
+                else:
+                    for dev in zram_devs:
+                        base = f"/sys/block/{dev}"
+                        lines.append(f"# {base}")
+                        try:
+                            lines.append(adb_runner(["shell", "cat", f"{base}/disksize"], 10).strip())
+                        except Exception:
+                            lines.append("<ERROR: disksize>")
+                        try:
+                            lines.append(adb_runner(["shell", "cat", f"{base}/mem_used_total"], 10).strip())
+                        except Exception:
+                            lines.append("<ERROR: mem_used_total>")
+                    output = "\n".join(lines)
+            elif name == "thp_defrag":
+                output = adb_runner(
+                    ["shell", "cat", "/sys/kernel/mm/transparent_hugepage/defrag"],
+                    timeout_sec,
+                )
+            elif name == "thp_khugepaged":
+                base_dir = "/sys/kernel/mm/transparent_hugepage/khugepaged"
+                lines = []
+                try:
+                    files = adb_runner(["shell", "ls", base_dir], 10).splitlines()
+                except Exception:
+                    files = []
+                if not files:
+                    output = "no khugepaged config dir"
+                else:
+                    for fname in files:
+                        fpath = f"{base_dir}/{fname.strip()}"
+                        lines.append(f"# {fpath}")
+                        try:
+                            lines.append(adb_runner(["shell", "cat", fpath], 10).strip())
+                        except Exception:
+                            lines.append("<ERROR: read>")
+                        lines.append("")
+                    output = "\n".join(lines).strip()
+            elif name == "lsmod":
+                try:
+                    output = adb_runner(["shell", "lsmod"], timeout_sec)
+                except Exception:
+                    output = adb_runner(["shell", "cat", "/proc/modules"], timeout_sec)
+            elif name == "greclaim_parm":
+                output = adb_runner(["shell", "cat", "/sys/kernel/mi_reclaim/greclaim_parm"], timeout_sec)
+            elif name == "process_use_count":
+                output = adb_runner(["shell", "cat", "/sys/kernel/mi_mempool/process_use_count"], timeout_sec)
+            elif name == "dumpsys_meminfo":
+                output = adb_runner(["shell", "dumpsys", "meminfo"], timeout_sec)
+            elif name == "dumpsys_procstats":
+                output = adb_runner(["shell", "dumpsys", "procstats"], timeout_sec)
             else:
-                output = adb_runner(["shell", "sh", "-c", shell_cmd], timeout_sec)
+                raise RuntimeError(f"unsupported section: {name}")
             sections.append(output.rstrip("\n"))
         except Exception as exc:
             # 超时等错误尝试重试一次（仅对关键节点）
-            if name in {"proc/meminfo", "proc/vmstat", "proc/zoneinfo"} and "超时" in str(exc):
+            if name in {"proc/meminfo", "proc/vmstat", "proc/zoneinfo", "proc/buddyinfo"} and "超时" in str(exc):
                 try:
                     proc_path = {
                         "proc/meminfo": "/proc/meminfo",
                         "proc/vmstat": "/proc/vmstat",
                         "proc/zoneinfo": "/proc/zoneinfo",
+                        "proc/buddyinfo": "/proc/buddyinfo",
                     }[name]
                     output = adb_runner(["shell", "cat", proc_path], timeout_sec + 60)
+                    sections.append(output.rstrip("\n"))
+                    sections.append("")
+                    continue
+                except Exception as exc2:
+                    sections.append(f"<ERROR: cmd failed: {exc2}>")
+            elif name in {"proc/pagetypeinfo", "proc/slabinfo", "proc/swaps"} and "超时" in str(exc):
+                try:
+                    proc_path = {
+                        "proc/pagetypeinfo": "/proc/pagetypeinfo",
+                        "proc/slabinfo": "/proc/slabinfo",
+                        "proc/swaps": "/proc/swaps",
+                    }[name]
+                    output = adb_runner(["shell", "cat", proc_path], timeout_sec + 60)
+                    sections.append(output.rstrip("\n"))
+                    sections.append("")
+                    continue
+                except Exception as exc2:
+                    sections.append(f"<ERROR: cmd failed: {exc2}>")
+            elif name == "thp_enabled" and "超时" in str(exc):
+                try:
+                    output = adb_runner(
+                        ["shell", "cat", "/sys/kernel/mm/transparent_hugepage/enabled"],
+                        timeout_sec + 60,
+                    )
                     sections.append(output.rstrip("\n"))
                     sections.append("")
                     continue

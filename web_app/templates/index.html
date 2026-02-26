@@ -9267,14 +9267,30 @@ python3 adb_agent.py \
             if (todayNode) {
                 todayNode.textContent = String(todayCount);
             }
-            if (totalNode) {
-                totalNode.textContent = String(tasks.length);
-            }
-            if (onlineNode) {
-                // 暂无服务端在线接口，先提供温和估计：1 + 最近任务活跃度
-                const estimate = Math.max(1, Math.min(12, 1 + Math.round(tasks.length / 5)));
-                onlineNode.textContent = String(estimate);
-            }
+            fetch('/api/stats')
+                .then(resp => (resp.ok ? resp.json() : null))
+                .then(stats => {
+                    const onlineIps = Number(stats?.online_ips);
+                    const totalOps = Number(stats?.total_ops);
+                    if (totalNode) {
+                        totalNode.textContent = Number.isFinite(totalOps)
+                            ? String(totalOps)
+                            : String(tasks.length);
+                    }
+                    if (onlineNode) {
+                        onlineNode.textContent = Number.isFinite(onlineIps)
+                            ? String(onlineIps)
+                            : '-';
+                    }
+                })
+                .catch(() => {
+                    if (totalNode) {
+                        totalNode.textContent = String(tasks.length);
+                    }
+                    if (onlineNode) {
+                        onlineNode.textContent = '-';
+                    }
+                });
         }
 
         // 页面加载时获取任务列表
