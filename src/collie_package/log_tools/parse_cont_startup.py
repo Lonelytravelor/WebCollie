@@ -2508,7 +2508,11 @@ def generate_report(events, output_file):
         skip_count = sum(1 for e in events if e['type'] == 'skip')
         proc_start_only_count = sum(1 for e in events if e['type'] == 'proc_start_only')
         subprocess_start_count = sum(1 for e in events if e['type'] == 'start' and e['is_subprocess'])
-        total_release_mem = sum(int(e['details']['kill_info']['killedPss']) for e in events if e['type'] == 'kill')
+        total_release_mem = sum(
+            (_safe_int((e.get('details') or {}).get('kill_info', {}).get('killedPss')) or 0)
+            for e in events
+            if e.get('type') == 'kill'
+        )
         total_killed = kill_count  # 每行代表一个被杀死的进程
         
         f.write(f"总事件数: {len(events)}\n")
