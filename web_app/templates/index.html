@@ -3852,7 +3852,7 @@ python3 adb_agent.py \
                             <button id="utilInstallActionBtn" class="analyze-btn util-action-btn" style="width:auto; margin:0; padding:10px 18px; font-size:0.95em;" onclick="handleInstallAction()">开始安装</button>
                             <button class="task-btn" id="utilPauseBtn" onclick="pauseUtilityJob()" disabled>暂停</button>
                             <button class="task-btn" id="utilResumeBtn" onclick="resumeUtilityJob()" disabled>继续</button>
-                            <button class="task-btn delete" onclick="cancelUtilityJob()">取消当前任务</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('app_install')">结束执行</button>
                         </div>
                         <div style="margin-top:12px;">
                             <div class="progress-line"><div id="utilProgressFill"></div></div>
@@ -3886,6 +3886,7 @@ python3 adb_agent.py \
                         <div class="check-app-actions">
                             <div class="check-app-action-left">
                                 <button class="task-btn view util-action-btn" onclick="runCheckApp()">批量检查应用版本</button>
+                                <button class="task-btn delete" onclick="cancelUtilityJob('check_app')">结束执行</button>
                             </div>
                             <div class="check-app-action-right">
                                 <button id="utilToggleCheckPreviewBtn" class="task-btn" onclick="toggleCheckPresetPreview()">展开预设预览</button>
@@ -3933,6 +3934,7 @@ python3 adb_agent.py \
                         <div class="muted">采集设备 getprop 与 dumpsys meminfo 原始信息。</div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button id="utilCollectMeminfoBtn" class="task-btn view util-action-btn" onclick="runQuickUtility('collect_device_meminfo_live', {})">开始采集</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('collect_device_meminfo')">结束执行</button>
                         </div>
                     </div>
                 </div>
@@ -3961,6 +3963,7 @@ python3 adb_agent.py \
                             <div class="check-app-action-left">
                                 <button class="task-btn view util-action-btn" onclick="runCompileApps()">执行编译</button>
                                 <button class="task-btn view util-action-btn" onclick="runPrepareApps()">执行预启动</button>
+                                <button class="task-btn delete" onclick="cancelUtilityJob('complie_and_prepare_app')">结束执行</button>
                             </div>
                             <div class="check-app-action-right">
                                 <button id="utilToggleCompilePreviewBtn" class="task-btn" onclick="toggleCompilePresetPreview()">展开预设预览</button>
@@ -3997,6 +4000,7 @@ python3 adb_agent.py \
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="task-btn view util-action-btn" onclick="runQuickUtility('meminfo_summary_live', {})">生成摘要</button>
                             <button class="task-btn view util-action-btn" onclick="runQuickUtility('meminfo_live', {})">查看原始 meminfo</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('meminfo_summary')">结束执行</button>
                         </div>
                     </div>
                 </div>
@@ -4013,6 +4017,7 @@ python3 adb_agent.py \
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="task-btn view util-action-btn" onclick="runKillinfoLineParse()">解析</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('killinfo_line_parse')">结束执行</button>
                         </div>
                         <div id="utilKillLineResultWrap" style="margin-top:12px; display:none;">
                             <div class="muted" style="margin-bottom:6px;">解析结果</div>
@@ -4073,6 +4078,7 @@ python3 adb_agent.py \
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="task-btn view util-action-btn" onclick="runAppDiedMonitor()">开始监控</button>
                             <button id="utilMonitorToggleBtn" class="task-btn" onclick="toggleMonitorPauseResume()" disabled>暂停监控</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('app_died_moniter')">结束执行</button>
                         </div>
                         <div class="preset-preview-card">
                             <div class="preset-preview-head">
@@ -4098,6 +4104,7 @@ python3 adb_agent.py \
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="task-btn view" onclick="runCheckAppAliveByPackage()">按包名检查</button>
                             <button class="task-btn view util-action-btn" onclick="runQuickUtility('meminfo_live', {})">查看全局 meminfo</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('check_app_alive')">结束执行</button>
                         </div>
                     </div>
                 </div>
@@ -4178,7 +4185,7 @@ python3 adb_agent.py \
                             <button class="task-btn view util-action-btn" onclick="runContStartupStay()">启动连续启动-驻留</button>
                             <button class="task-btn" id="utilContPauseBtn" onclick="pauseUtilityJob()" disabled>暂停</button>
                             <button class="task-btn" id="utilContResumeBtn" onclick="resumeUtilityJob()" disabled>继续</button>
-                            <button class="task-btn delete" onclick="cancelUtilityJob()">取消当前任务</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('cont_startup_stay')">结束执行</button>
                         </div>
 
                         <div class="preset-preview-card" style="margin-top:12px;">
@@ -4222,6 +4229,7 @@ python3 adb_agent.py \
                         </div>
                         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
                             <button class="task-btn view util-action-btn" onclick="runPerfSimpleperf()">开始 simpleperf 抓取</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('simpleperf')">结束执行</button>
                         </div>
                         <div style="margin-top:12px;">
                             <div id="utilPerfProgressText" class="muted">等待开始</div>
@@ -7381,31 +7389,41 @@ python3 adb_agent.py \
             }
         }
 
-        async function cancelUtilityJob() {
-            const state = _getCurrentUtilityTabState();
-            const targetJobId = state.jobId || utilityJobId;
+        async function cancelUtilityJob(tabId = '') {
+            const targetTab = String(tabId || '');
+            const isCurrentTab = !targetTab || targetTab === currentUtilitySubTab;
+            const state = targetTab ? _ensureUtilityTabState(targetTab) : _getCurrentUtilityTabState();
+            const targetJobId = state.jobId || '';
             if (!targetJobId) {
-                setUtilityStatus('当前没有运行中的任务', true);
-                alert('当前没有运行中的任务');
+                if (isCurrentTab) {
+                    setUtilityStatus('当前没有运行中的任务', true);
+                    alert('当前没有运行中的任务');
+                }
                 return;
             }
+            const confirmed = window.confirm('确定要结束当前任务吗？正在执行的操作会被中断。');
+            if (!confirmed) return;
             try {
                 const resp = await fetch(`/api/utilities/jobs/${targetJobId}/cancel`, {method: 'POST'});
                 const data = await resp.json();
                 if (!resp.ok) {
                     throw new Error(data.error || '取消失败');
                 }
-                setUtilityStatus('已请求取消任务');
-                utilInstallInProgress = false;
-                utilInstallAwaitingManualConfirm = false;
-                _syncInstallActionButton();
                 state.status = 'cancelled';
                 state.paused = false;
-                updatePauseResumeButtons('cancelled', false);
-                updateMonitorPauseResumeButtons('cancelled', false, utilityJobAction);
-                updateContPauseResumeButtons('cancelled', false, utilityJobAction);
+                if (isCurrentTab) {
+                    setUtilityStatus('已请求取消任务');
+                    utilInstallInProgress = false;
+                    utilInstallAwaitingManualConfirm = false;
+                    _syncInstallActionButton();
+                    updatePauseResumeButtons('cancelled', false);
+                    updateMonitorPauseResumeButtons('cancelled', false, utilityJobAction);
+                    updateContPauseResumeButtons('cancelled', false, utilityJobAction);
+                }
             } catch (err) {
-                setUtilityStatus(`取消失败: ${err.message}`, true);
+                if (isCurrentTab) {
+                    setUtilityStatus(`取消失败: ${err.message}`, true);
+                }
             }
         }
 
