@@ -579,6 +579,186 @@ def run_collect_device_meminfo(
     hooks.progress(100, "设备内存信息采集完成")
 
 
+def run_bugreport_capture(
+    device_id: str,
+    out_dir: Path,
+    adb_runner: Callable[[list, int], str],
+    hooks: TaskHooks,
+    timeout_sec: int = 1200,
+    save_dir: Optional[str] = None,
+    verify_output: bool = True,
+) -> Optional[str]:
+    _validate_positive_int(int(timeout_sec), "timeout_sec", 30, 7200)
+    hooks.progress(5, "开始抓取 bugreport")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_dir = Path(save_dir) if save_dir else out_dir
+    output_file = base_dir / f"bugreport_{timestamp}.zip"
+    adb_runner(["bugreport", str(output_file)], int(timeout_sec))
+    if verify_output:
+        if not output_file.exists() or output_file.stat().st_size < 1024:
+            raise RuntimeError("bugreport 文件无效或为空")
+    hooks.progress(100, "bugreport 抓取完成")
+    return str(output_file)
+
+
+def run_reclaim_ftrace_capture(
+    device_id: str,
+    duration_s: int,
+    out_dir: Path,
+    adb_runner: Callable[[list, int], str],
+    hooks: TaskHooks,
+    try_adb_root: bool = False,
+    save_dir: Optional[str] = None,
+    verify_output: bool = True,
+) -> Optional[str]:
+    _validate_positive_int(int(duration_s), "duration_s", 1, 1800)
+    hooks.progress(5, "准备抓取 ftrace")
+    if try_adb_root:
+        try:
+            adb_runner(["root"], 20)
+            hooks.log("[reclaim] 已尝试 adb root")
+        except Exception as exc:  # noqa: BLE001
+            hooks.warn(f"[reclaim] adb root 失败: {exc}")
+
+    def _shell(cmd: str, timeout_sec: int = 10) -> str:
+        return adb_runner(["shell", "sh", "-c", cmd], timeout_sec)
+
+    trace_root = "/sys/kernel/tracing"
+    root_probe = _shell(f"if [ -e {trace_root}/trace ]; then echo ok; else echo no; fi").strip()
+    if root_probe != "ok":
+        alt_root = "/d/tracing"
+        alt_probe = _shell(f"if [ -e {alt_root}/trace ]; then echo ok; else echo no; fi").strip()
+        if alt_probe == "ok":
+            trace_root = alt_root
+            hooks.warn(f"[reclaim] tracing 目录切换为 {trace_root}")
+        else:
+            raise RuntimeError("未找到可用的 tracing 目录")
+    events = [
+        "mm_vmscan_direct_reclaim_begin",
+        "mm_vmscan_direct_reclaim_end",
+        "mm_vmscan_kswapd_sleep",
+        "mm_vmscan_kswapd_wake",
+        "mm_vmscan_wakeup_kswapd",
+    ]
+
+    hooks.progress(8, "清理 trace 缓冲")
+    _shell(f"echo 0 > {trace_root}/tracing_on")
+    _shell(f"echo > {trace_root}/trace")
+
+    hooks.progress(12, "开启 vmscan 事件")
+    for event in events:
+        _shell(f"echo 1 > {trace_root}/events/vmscan/{event}/enable")
+    _shell(f"echo 1 > {trace_root}/tracing_on")
+
+    try:
+        hooks.progress(20, f"抓取中（{duration_s}s）")
+        start_ts = time.time()
+        while True:
+            hooks.wait_if_paused()
+            hooks.check_cancel()
+            elapsed = time.time() - start_ts
+            if elapsed >= duration_s:
+                break
+            ratio = min(1.0, max(0.0, elapsed / max(1.0, float(duration_s))))
+            hooks.progress(20 + int(70 * ratio), f"抓取中（{int(elapsed)}/{duration_s}s）")
+            hooks.sleep_with_control(0.5)
+
+        hooks.progress(92, "停止抓取")
+    finally:
+        _shell(f"echo 0 > {trace_root}/tracing_on")
+        for event in events:
+            _shell(f"echo 0 > {trace_root}/events/vmscan/{event}/enable")
+
+    hooks.progress(96, "导出 trace")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_dir = Path(save_dir) if save_dir else out_dir
+    output_file = base_dir / f"reclaim_ftrace_{timestamp}.txt"
+    device_dir = "/data/local/tmp/collie_exports"
+    device_file = f"{device_dir}/reclaim_ftrace_{timestamp}.txt"
+    adb_runner(["shell", "mkdir", "-p", device_dir], 20)
+    _shell(f"cat {trace_root}/trace > {device_file}", 120)
+    adb_runner(["pull", device_file, str(output_file)], 120)
+    if verify_output:
+        if not output_file.exists() or output_file.stat().st_size <= 0:
+            raise RuntimeError("ftrace 文件无效或为空")
+    hooks.progress(100, "ftrace 抓取完成")
+    return str(output_file)
+
+
+def run_perfetto_capture(
+    device_id: str,
+    out_dir: Path,
+    hooks: TaskHooks,
+    duration_s: Optional[int] = None,
+    config_name: str = "config.pbtx",
+    try_adb_root: bool = False,
+    sideload: bool = True,
+    timeout_sec: int = 1200,
+    save_dir: Optional[str] = None,
+    verify_output: bool = True,
+) -> Optional[str]:
+    hooks.progress(5, "准备 perfetto 资源")
+    base_dir = Path(__file__).resolve().parents[1] / "resources" / "perfetto"
+    config_path = base_dir / config_name
+    if not config_path.exists():
+        raise RuntimeError(f"未找到 perfetto 配置: {config_name}")
+
+    hooks.progress(10, "生成 perfetto 配置")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    target_config = out_dir / f"perfetto_{timestamp}.pbtx"
+    config_text = config_path.read_text(encoding="utf-8", errors="ignore")
+    if duration_s is not None:
+        _validate_positive_int(int(duration_s), "duration_s", 1, 7200)
+        duration_ms = int(duration_s) * 1000
+        if re.search(r"^\s*duration_ms:\s*\d+", config_text, flags=re.MULTILINE):
+            config_text = re.sub(
+                r"^\s*duration_ms:\s*\d+",
+                f"duration_ms: {duration_ms}",
+                config_text,
+                flags=re.MULTILINE,
+            )
+        else:
+            config_text = config_text.rstrip() + f"\n\nduration_ms: {duration_ms}\n"
+    target_config.write_text(config_text, encoding="utf-8")
+
+    if sideload:
+        hooks.warn("[perfetto] sideload 模式在设备侧抓取流程中不生效")
+
+    if try_adb_root:
+        try:
+            adb_runner(["root"], 20)
+            hooks.log("[perfetto] 已尝试 adb root")
+        except Exception as exc:  # noqa: BLE001
+            hooks.warn(f"[perfetto] adb root 失败: {exc}")
+
+    base_dir = Path(save_dir) if save_dir else out_dir
+    output_file = base_dir / f"perfetto_{timestamp}.perfetto-trace"
+    device_dir = "/data/local/tmp/collie_exports"
+    device_config = f"{device_dir}/perfetto_{timestamp}.pbtx"
+    device_trace = f"{device_dir}/perfetto_{timestamp}.perfetto-trace"
+
+    adb_runner(["shell", "mkdir", "-p", device_dir], 20)
+    hooks.progress(12, "写入设备配置")
+    import base64
+
+    b64 = base64.b64encode(config_text.encode("utf-8")).decode("ascii")
+    adb_runner(["shell", "sh", "-c", f"printf %s '{b64}' | base64 -d > {device_config}"], 20)
+
+    hooks.progress(20, "开始抓取 perfetto")
+    timeout_sec = int(timeout_sec)
+    _validate_positive_int(timeout_sec, "timeout_sec", 60, 7200)
+    adb_runner(
+        ["shell", "perfetto", "--txt", "-c", device_config, "-o", device_trace],
+        timeout_sec,
+    )
+    adb_runner(["pull", device_trace, str(output_file)], 120)
+    if verify_output:
+        if not output_file.exists() or output_file.stat().st_size <= 0:
+            raise RuntimeError("perfetto trace 文件为空或未生成")
+    hooks.progress(100, "perfetto 抓取完成")
+    return str(output_file)
+
+
 def run_killinfo_line_parse(
     line_text: str,
     out_dir: Path,
