@@ -16,6 +16,8 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import os
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List
 
@@ -87,6 +89,34 @@ def _guess_local_ip() -> str:
             return str(sock.getsockname()[0] or "127.0.0.1")
     except Exception:
         return "127.0.0.1"
+
+
+def _expand_path(raw_path: str) -> str:
+    if not raw_path:
+        raise ValueError("path 不能为空")
+    expanded = os.path.expanduser(raw_path)
+    return os.path.abspath(expanded)
+
+
+def _ensure_dir(raw_path: str) -> str:
+    path = _expand_path(raw_path)
+    os.makedirs(path, exist_ok=True)
+    if not os.path.isdir(path):
+        raise ValueError("path 不是目录")
+    return path
+
+
+def _open_dir(raw_path: str) -> None:
+    path = _expand_path(raw_path)
+    if not os.path.isdir(path):
+        raise ValueError("path 不是目录")
+    if sys.platform.startswith("darwin"):
+        subprocess.run(["open", path], check=False)
+        return
+    if sys.platform.startswith("win"):
+        subprocess.run(["explorer", path], check=False)
+        return
+    subprocess.run(["xdg-open", path], check=False)
 
 
 class _State:
@@ -188,6 +218,28 @@ def _make_handler(state: _State):
             self._json(404, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
+            if self.path == "/host/ensure-dir":
+                data = self._read_json()
+                raw_path = str(data.get("path", "")).strip()
+                try:
+                    normalized = _ensure_dir(raw_path)
+                except Exception as exc:
+                    self._json(400, {"error": str(exc)})
+                    return
+                self._json(200, {"path": normalized})
+                return
+
+            if self.path == "/host/open-dir":
+                data = self._read_json()
+                raw_path = str(data.get("path", "")).strip()
+                try:
+                    _open_dir(raw_path)
+                except Exception as exc:
+                    self._json(400, {"error": str(exc)})
+                    return
+                self._json(200, {"ok": True})
+                return
+
             if self.path != "/adb/run":
                 self._json(404, {"error": "not found"})
                 return

@@ -1,0 +1,4 @@
+adb root
+adb shell "chmod 664 -R /sys/kernel/tracing/events/*"
+./record_android_trace -c config.pbtx -o mytrace.perfetto-trace
+# 输出的文件名可以自定义

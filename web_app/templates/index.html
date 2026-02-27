@@ -3816,9 +3816,11 @@ python3 adb_agent.py \
                 <div class="subtab-bar" id="utilSubTabBar">
                     <button class="subtab-btn active" data-subtab="app_install" onclick="switchUtilitySubTab('app_install')">应用安装</button>
                     <button class="subtab-btn" data-subtab="check_app" onclick="switchUtilitySubTab('check_app')">版本检查</button>
-                    <button class="subtab-btn" data-subtab="collect_device_meminfo" onclick="switchUtilitySubTab('collect_device_meminfo')">设备内存采集</button>
                     <button class="subtab-btn" data-subtab="complie_and_prepare_app" onclick="switchUtilitySubTab('complie_and_prepare_app')">编译与预启动</button>
                     <button class="subtab-btn" data-subtab="meminfo_summary" onclick="switchUtilitySubTab('meminfo_summary')">Meminfo 摘要</button>
+                    <button class="subtab-btn" data-subtab="bugreport" onclick="switchUtilitySubTab('bugreport')">Bugreport</button>
+                    <button class="subtab-btn" data-subtab="reclaim_ftrace" onclick="switchUtilitySubTab('reclaim_ftrace')">Reclaim 日志</button>
+                    <button class="subtab-btn" data-subtab="perfetto" onclick="switchUtilitySubTab('perfetto')">Perfetto 抓取</button>
                     <button class="subtab-btn" data-subtab="killinfo_line_parse" onclick="switchUtilitySubTab('killinfo_line_parse')">Kill 信息解析</button>
                     <button class="subtab-btn" data-subtab="persist_props" onclick="switchUtilitySubTab('persist_props')">属性开关</button>
                 </div>
@@ -3928,17 +3930,6 @@ python3 adb_agent.py \
                     </div>
                 </div>
 
-                <div class="subtab-panel" id="utilSubTab-collect_device_meminfo">
-                    <div class="card">
-                        <div class="card-title">collect_device_meminfo（设备内存采集）</div>
-                        <div class="muted">采集设备 getprop 与 dumpsys meminfo 原始信息。</div>
-                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button id="utilCollectMeminfoBtn" class="task-btn view util-action-btn" onclick="runQuickUtility('collect_device_meminfo_live', {})">开始采集</button>
-                            <button class="task-btn delete" onclick="cancelUtilityJob('collect_device_meminfo')">结束执行</button>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="subtab-panel" id="utilSubTab-complie_and_prepare_app">
                     <div class="card">
                         <div class="card-title">complie_and_prepare_app（编译与预启动）</div>
@@ -4005,6 +3996,94 @@ python3 adb_agent.py \
                     </div>
                 </div>
 
+                <div class="subtab-panel" id="utilSubTab-bugreport">
+                    <div class="card">
+                        <div class="card-title">bugreport 抓取</div>
+                        <div class="muted">直接通过 ADB 抓取完整 bugreport（zip），保存到本机目录。</div>
+                        <div class="utilities-grid" style="margin-top:12px;">
+                            <div style="grid-column: 1 / -1;">
+                                <label>保存到本地目录</label>
+                                <input id="utilBugreportSaveDir" type="text" value="~/CollieExports" placeholder="~/CollieExports">
+                            </div>
+                            <div>
+                                <label>超时时间（秒）</label>
+                                <input id="utilBugreportTimeout" type="number" min="30" max="7200" value="1200">
+                            </div>
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="task-btn view util-action-btn" onclick="runBugreportCapture()">开始抓取</button>
+                            <button class="task-btn" onclick="openUtilitySaveDir('utilBugreportSaveDir')">打开目录</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('bugreport')">结束执行</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subtab-panel" id="utilSubTab-reclaim_ftrace">
+                    <div class="card">
+                        <div class="card-title">kswapd / direct reclaim 日志抓取</div>
+                        <div class="muted">抓取 vmscan 相关 ftrace（需 root 权限），保存到本机目录。</div>
+                        <div class="utilities-grid" style="margin-top:12px;">
+                            <div style="grid-column: 1 / -1;">
+                                <label>保存到本地目录</label>
+                                <input id="utilReclaimSaveDir" type="text" value="~/CollieExports" placeholder="~/CollieExports">
+                            </div>
+                            <div>
+                                <label>抓取时长（秒）</label>
+                                <input id="utilReclaimDuration" type="number" min="1" max="1800" value="30">
+                            </div>
+                            <div>
+                                <label><input id="utilReclaimTryRoot" type="checkbox"> 尝试 adb root</label>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="task-btn view util-action-btn" onclick="runReclaimFtraceCapture()">开始抓取</button>
+                            <button class="task-btn" onclick="openUtilitySaveDir('utilReclaimSaveDir')">打开目录</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('reclaim_ftrace')">结束执行</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subtab-panel" id="utilSubTab-perfetto">
+                    <div class="card">
+                        <div class="card-title">perfetto 抓取</div>
+                        <div class="muted">基于资源目录的 config.pbtx 抓取 perfetto trace，保存到本机目录。</div>
+                        <div class="utilities-grid" style="margin-top:12px;">
+                            <div style="grid-column: 1 / -1;">
+                                <label>保存到本地目录</label>
+                                <input id="utilPerfettoSaveDir" type="text" value="~/CollieExports" placeholder="~/CollieExports">
+                            </div>
+                            <div>
+                                <label>抓取时长（秒）</label>
+                                <input id="utilPerfettoDuration" type="number" min="1" max="7200" value="300">
+                            </div>
+                            <div>
+                                <label>配置文件</label>
+                                <select id="utilPerfettoConfig">
+                                    <option value="config.pbtx" selected>config.pbtx</option>
+                                    <option value="config_org.pbtx">config_org.pbtx</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>超时时间（秒）</label>
+                                <input id="utilPerfettoTimeout" type="number" min="60" max="7200" value="1200">
+                            </div>
+                            <div>
+                                <label><input id="utilPerfettoSideload" type="checkbox" checked> 强制 sideload tracebox</label>
+                            </div>
+                            <div>
+                                <label><input id="utilPerfettoTryRoot" type="checkbox"> 尝试 adb root</label>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="task-btn view util-action-btn" onclick="runPerfettoCapture()">开始抓取</button>
+                            <button class="task-btn" onclick="openUtilitySaveDir('utilPerfettoSaveDir')">打开目录</button>
+                            <button class="task-btn" onclick="openPerfettoUi()">打开 Perfetto 可视化</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('perfetto')">结束执行</button>
+                        </div>
+                        <div id="utilPerfettoSavedPath" class="muted" style="margin-top:10px;">保存路径：-</div>
+                    </div>
+                </div>
+
                 <div class="subtab-panel" id="utilSubTab-killinfo_line_parse">
                     <div class="card">
                         <div class="card-title">killinfo_line_parse（单行 kill 信息解析）</div>
@@ -4055,6 +4134,7 @@ python3 adb_agent.py \
                     <button class="subtab-btn active" data-subtab="app_died_moniter" onclick="switchRdSubTab('app_died_moniter')">存活监控</button>
                     <button class="subtab-btn" data-subtab="check_app_alive" onclick="switchRdSubTab('check_app_alive')">存活检查</button>
                     <button class="subtab-btn" data-subtab="cont_startup_stay" onclick="switchRdSubTab('cont_startup_stay')">连续启动-驻留</button>
+                    <button class="subtab-btn" data-subtab="collect_device_meminfo" onclick="switchRdSubTab('collect_device_meminfo')">设备内存采集</button>
                     <button class="subtab-btn" data-subtab="simpleperf" onclick="switchRdSubTab('simpleperf')">simpleperf抓取</button>
                     <button class="subtab-btn" data-subtab="mem_design_compare" onclick="switchRdSubTab('mem_design_compare')">内存设计对比</button>
                 </div>
@@ -4194,6 +4274,17 @@ python3 adb_agent.py \
                                 <div class="preset-preview-badge">前 60 条</div>
                             </div>
                             <div id="utilContPresetPreview" class="utilities-log preset-preview-log">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subtab-panel" id="rdSubTab-collect_device_meminfo">
+                    <div class="card">
+                        <div class="card-title">collect_device_meminfo（设备内存采集）</div>
+                        <div class="muted">采集设备 getprop 与 dumpsys meminfo 原始信息。</div>
+                        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button id="utilCollectMeminfoBtn" class="task-btn view util-action-btn" onclick="runQuickUtility('collect_device_meminfo_live', {})">开始采集</button>
+                            <button class="task-btn delete" onclick="cancelUtilityJob('collect_device_meminfo')">结束执行</button>
                         </div>
                     </div>
                 </div>
@@ -5748,6 +5839,18 @@ python3 adb_agent.py \
         const utilPresetMaxWait = document.getElementById('utilPresetMaxWait');
         const utilInstallInterval = document.getElementById('utilInstallInterval');
         const utilCollectMeminfoBtn = document.getElementById('utilCollectMeminfoBtn');
+        const utilBugreportTimeout = document.getElementById('utilBugreportTimeout');
+        const utilBugreportSaveDir = document.getElementById('utilBugreportSaveDir');
+        const utilReclaimDuration = document.getElementById('utilReclaimDuration');
+        const utilReclaimTryRoot = document.getElementById('utilReclaimTryRoot');
+        const utilReclaimSaveDir = document.getElementById('utilReclaimSaveDir');
+        const utilPerfettoDuration = document.getElementById('utilPerfettoDuration');
+        const utilPerfettoConfig = document.getElementById('utilPerfettoConfig');
+        const utilPerfettoTimeout = document.getElementById('utilPerfettoTimeout');
+        const utilPerfettoSideload = document.getElementById('utilPerfettoSideload');
+        const utilPerfettoTryRoot = document.getElementById('utilPerfettoTryRoot');
+        const utilPerfettoSaveDir = document.getElementById('utilPerfettoSaveDir');
+        const utilPerfettoSavedPath = document.getElementById('utilPerfettoSavedPath');
         const utilPerfPackageSelect = document.getElementById('utilPerfPackageSelect');
         const utilPerfCustomWrap = document.getElementById('utilPerfCustomWrap');
         const utilPerfPackageCustom = document.getElementById('utilPerfPackageCustom');
@@ -7213,6 +7316,32 @@ python3 adb_agent.py \
             state.jobId = jobId || state.jobId || '';
             _renderUtilityFileLinks(utilFiles, state.jobId, state.files, state.action || utilityJobAction || '');
             _updateSimpleperfPreview(state);
+            _updateLocalSavePath(state);
+        }
+
+        async function _updateLocalSavePath(state) {
+            if (!state || state.action !== 'perfetto_capture') return;
+            if (!utilPerfettoSavedPath) return;
+            const jobId = state.jobId || utilityJobId;
+            if (!jobId) return;
+            if (utilPerfettoSavedPath.dataset.jobId === jobId) return;
+            const files = Array.isArray(state.files) ? state.files : [];
+            const target = files.find(item => item?.name === 'local_paths.txt');
+            if (!target) return;
+            try {
+                const resp = await fetch(`/api/utilities/preview/${encodeURIComponent(jobId)}/${encodeURIComponent(target.name)}`);
+                if (!resp.ok) {
+                    throw new Error('无法获取保存路径');
+                }
+                const text = await resp.text();
+                const match = text.match(/perfetto:\s*(.+)/);
+                const path = match ? match[1].trim() : '';
+                utilPerfettoSavedPath.textContent = `保存路径：${path || '-'}`;
+                utilPerfettoSavedPath.dataset.path = path || '';
+                utilPerfettoSavedPath.dataset.jobId = jobId;
+            } catch (err) {
+                utilPerfettoSavedPath.textContent = `保存路径：获取失败 (${err.message})`;
+            }
         }
 
         async function _pollUtilityJob() {
@@ -7303,6 +7432,29 @@ python3 adb_agent.py \
             }
         }
 
+        const UTILITY_NO_DEVICE_ACTIONS = new Set(['killinfo_line_parse']);
+
+        function _ensureUtilityDeviceSelected(action) {
+            if (UTILITY_NO_DEVICE_ACTIONS.has(action)) {
+                return true;
+            }
+            if (!utilDeviceSelect) {
+                return true;
+            }
+            const deviceId = (utilDeviceSelect.value || '').trim();
+            if (deviceId) {
+                return true;
+            }
+            const selectedOption = utilDeviceSelect.options
+                ? utilDeviceSelect.options[utilDeviceSelect.selectedIndex]
+                : null;
+            const label = selectedOption ? (selectedOption.textContent || '').trim() : '';
+            const message = label.includes('未检测到设备') ? '未检测到在线设备' : '请先选择设备';
+            setUtilityStatus(message, true);
+            alert(message);
+            return false;
+        }
+
         async function runUtilityActionWithPayload(action, params) {
             if (!action) {
                 alert('缺少 action');
@@ -7311,6 +7463,9 @@ python3 adb_agent.py \
             if (utilGlobalBusy) {
                 setUtilityStatus('已有任务进行中，当前不支持继续', true);
                 alert('已有任务进行中，当前不支持继续');
+                return;
+            }
+            if (!_ensureUtilityDeviceSelected(action)) {
                 return;
             }
             const state = _getCurrentUtilityTabState();
@@ -7966,6 +8121,81 @@ python3 adb_agent.py \
                 package: pkg,
                 duration_s: Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 10,
                 startup_mode: startupMode,
+            });
+        }
+
+        function openUtilitySaveDir(inputId) {
+            const inputEl = inputId ? document.getElementById(inputId) : null;
+            const path = (inputEl && inputEl.value ? inputEl.value : '').trim();
+            if (!path) {
+                alert('请先填写保存目录');
+                return;
+            }
+            const deviceId = (utilDeviceSelect && utilDeviceSelect.value ? utilDeviceSelect.value : '').trim();
+            fetch('/api/utilities/open-local-dir', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path, device_id: deviceId || null }),
+            })
+                .then(resp => resp.json().then(data => ({ ok: resp.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok) throw new Error(data.error || '打开目录失败');
+                })
+                .catch(err => {
+                    alert(err.message || '打开目录失败');
+                });
+        }
+
+        function openPerfettoUi() {
+            window.open('https://ui.perfetto.dev', '_blank', 'noopener');
+            const path = utilPerfettoSavedPath && utilPerfettoSavedPath.dataset.path
+                ? utilPerfettoSavedPath.dataset.path
+                : '';
+            if (path) {
+                const hint = `已打开 Perfetto 页面，请将以下文件拖入页面进行可视化：\n${path}`;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(path).catch(() => {});
+                }
+                alert(hint);
+                return;
+            }
+            alert('已打开 Perfetto 页面，请将抓取的 perfetto-trace 文件拖入页面进行可视化。');
+        }
+
+        function runBugreportCapture() {
+            const timeoutSec = Number(utilBugreportTimeout && utilBugreportTimeout.value ? utilBugreportTimeout.value : 1200);
+            const saveDir = (utilBugreportSaveDir && utilBugreportSaveDir.value ? utilBugreportSaveDir.value : '').trim();
+            runUtilityActionWithPayload('bugreport_capture', {
+                timeout_sec: Number.isFinite(timeoutSec) ? Math.max(30, Math.floor(timeoutSec)) : 1200,
+                save_dir: saveDir || '~/CollieExports',
+            });
+        }
+
+        function runReclaimFtraceCapture() {
+            const duration = Number(utilReclaimDuration && utilReclaimDuration.value ? utilReclaimDuration.value : 30);
+            const tryRoot = !!(utilReclaimTryRoot && utilReclaimTryRoot.checked);
+            const saveDir = (utilReclaimSaveDir && utilReclaimSaveDir.value ? utilReclaimSaveDir.value : '').trim();
+            runUtilityActionWithPayload('reclaim_ftrace_capture', {
+                duration_s: Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 30,
+                try_adb_root: tryRoot,
+                save_dir: saveDir || '~/CollieExports',
+            });
+        }
+
+        function runPerfettoCapture() {
+            const duration = Number(utilPerfettoDuration && utilPerfettoDuration.value ? utilPerfettoDuration.value : 300);
+            const timeoutSec = Number(utilPerfettoTimeout && utilPerfettoTimeout.value ? utilPerfettoTimeout.value : 1200);
+            const configName = (utilPerfettoConfig && utilPerfettoConfig.value ? utilPerfettoConfig.value : 'config.pbtx').trim();
+            const sideload = !!(utilPerfettoSideload && utilPerfettoSideload.checked);
+            const tryRoot = !!(utilPerfettoTryRoot && utilPerfettoTryRoot.checked);
+            const saveDir = (utilPerfettoSaveDir && utilPerfettoSaveDir.value ? utilPerfettoSaveDir.value : '').trim();
+            runUtilityActionWithPayload('perfetto_capture', {
+                duration_s: Number.isFinite(duration) ? Math.max(1, Math.floor(duration)) : 300,
+                timeout_sec: Number.isFinite(timeoutSec) ? Math.max(60, Math.floor(timeoutSec)) : 1200,
+                config_name: configName || 'config.pbtx',
+                sideload,
+                try_adb_root: tryRoot,
+                save_dir: saveDir || '~/CollieExports',
             });
         }
 

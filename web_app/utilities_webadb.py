@@ -10,6 +10,7 @@ import uuid
 import zipfile
 import urllib.error
 import urllib.request
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +29,9 @@ from collie_package.utilities.web_tasks import (
     run_check_app_versions,
     run_collect_device_meminfo,
     run_cont_startup_stay,
+    run_bugreport_capture,
+    run_reclaim_ftrace_capture,
+    run_perfetto_capture,
     run_device_info,
     run_killinfo_line_parse,
     run_meminfo_live,
@@ -114,6 +118,58 @@ def register_utilities_routes(app, get_client_ip, get_user_folder, bump_global_o
 
     def _adb_exists():
         return shutil.which("adb") is not None
+
+    def _normalize_local_dir(path: str) -> str:
+        if not path:
+            raise RuntimeError("保存目录不能为空")
+        normalized = os.path.abspath(os.path.expanduser(path))
+        os.makedirs(normalized, exist_ok=True)
+        if not os.path.isdir(normalized):
+            raise RuntimeError("保存目录无效")
+        test_file = os.path.join(normalized, ".collie_write_test")
+        try:
+            with open(test_file, "w", encoding="utf-8") as f:
+                f.write("ok")
+            os.remove(test_file)
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(f"保存目录不可写: {exc}")
+        return normalized
+
+    def _ensure_save_dir(save_dir: str, device_id: str, owner_ip: str) -> str:
+        if _is_proxy_device_id(device_id):
+            agent_id, _ = _parse_proxy_device_id(device_id)
+            resp = _call_agent_api(
+                agent_id=agent_id,
+                path="/host/ensure-dir",
+                payload={"path": save_dir},
+                timeout_sec=10,
+                owner_ip=owner_ip,
+            )
+            normalized = str(resp.get("path", "")).strip()
+            if not normalized:
+                raise RuntimeError("代理返回的保存目录为空")
+            return normalized
+        return _normalize_local_dir(save_dir)
+
+    def _open_local_dir(path: str):
+        normalized = os.path.abspath(os.path.expanduser(path))
+        if not os.path.isdir(normalized):
+            raise RuntimeError("保存目录不存在")
+        if sys.platform.startswith("darwin"):
+            subprocess.run(["open", normalized], check=False)
+            return
+        if sys.platform.startswith("win"):
+            subprocess.run(["explorer", normalized], check=False)
+            return
+        subprocess.run(["xdg-open", normalized], check=False)
+
+    def _record_saved_path(job_dir: Path, label: str, path: str):
+        if not path:
+            return
+        text = f"{label}: {path}\n"
+        path_file = job_dir / "local_paths.txt"
+        with open(path_file, "a", encoding="utf-8", errors="ignore") as f:
+            f.write(text)
 
     def _cleanup_stale_agents():
         now = time.time()
@@ -744,6 +800,80 @@ def register_utilities_routes(app, get_client_ip, get_user_folder, bump_global_o
             )
             return
 
+        if action == "bugreport_capture":
+            timeout_sec = int(params.get("timeout_sec", 1200))
+            save_dir_raw = str(params.get("save_dir", "")).strip() or "~/CollieExports"
+            save_dir = _ensure_save_dir(save_dir_raw, device_id, owner_ip=job.get("ip"))
+            hooks = _make_task_hooks(job)
+            verify_output = not _is_proxy_device_id(device_id)
+            _append_log(job["stdout_path"], f"[save_dir] {save_dir}\n")
+            output_path = run_bugreport_capture(
+                device_id=device_id,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+                timeout_sec=timeout_sec,
+                save_dir=save_dir,
+                verify_output=verify_output,
+            )
+            if output_path:
+                _record_saved_path(out_dir, "bugreport", str(output_path))
+                _append_log(job["stdout_path"], f"[save_path] {output_path}\n")
+            return
+
+        if action == "reclaim_ftrace_capture":
+            duration_s = int(params.get("duration_s", 30))
+            try_adb_root = bool(params.get("try_adb_root", False))
+            save_dir_raw = str(params.get("save_dir", "")).strip() or "~/CollieExports"
+            save_dir = _ensure_save_dir(save_dir_raw, device_id, owner_ip=job.get("ip"))
+            hooks = _make_task_hooks(job)
+            verify_output = not _is_proxy_device_id(device_id)
+            _append_log(job["stdout_path"], f"[save_dir] {save_dir}\n")
+            output_path = run_reclaim_ftrace_capture(
+                device_id=device_id,
+                duration_s=duration_s,
+                out_dir=out_dir,
+                adb_runner=lambda args, timeout: _run_cmd(job, _adb_command(device_id, list(args)), timeout=timeout),
+                hooks=hooks,
+                try_adb_root=try_adb_root,
+                save_dir=save_dir,
+                verify_output=verify_output,
+            )
+            if output_path:
+                _record_saved_path(out_dir, "reclaim_ftrace", str(output_path))
+                _append_log(job["stdout_path"], f"[save_path] {output_path}\n")
+            return
+
+        if action == "perfetto_capture":
+            duration_s = params.get("duration_s")
+            if duration_s is not None:
+                duration_s = int(duration_s)
+            timeout_sec = int(params.get("timeout_sec", 1200))
+            config_name = str(params.get("config_name", "config.pbtx")).strip() or "config.pbtx"
+            try_adb_root = bool(params.get("try_adb_root", False))
+            sideload = bool(params.get("sideload", True))
+            save_dir_raw = str(params.get("save_dir", "")).strip() or "~/CollieExports"
+            save_dir = _ensure_save_dir(save_dir_raw, device_id, owner_ip=job.get("ip"))
+            hooks = _make_task_hooks(job)
+            verify_output = not _is_proxy_device_id(device_id)
+            _append_log(job["stdout_path"], f"[save_dir] {save_dir}\n")
+            output_path = run_perfetto_capture(
+                device_id=device_id,
+                out_dir=out_dir,
+                hooks=hooks,
+                duration_s=duration_s,
+                config_name=config_name,
+                try_adb_root=try_adb_root,
+                sideload=sideload,
+                timeout_sec=timeout_sec,
+                save_dir=save_dir,
+                verify_output=verify_output,
+            )
+            if output_path:
+                _record_saved_path(out_dir, "perfetto", str(output_path))
+                _append_log(job["stdout_path"], f"[save_path] {output_path}\n")
+            return
+
         if action == "killinfo_line_parse":
             line_text = str(params.get("line", "")).strip()
             hooks = _make_task_hooks(job)
@@ -1222,7 +1352,9 @@ def register_utilities_routes(app, get_client_ip, get_user_folder, bump_global_o
 
     @bp.route("/api/utilities/run", methods=["POST"])
     def api_utilities_run():
-        data = request.json or {}
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({"error": "请求体必须为 JSON"}), 400
         action = str(data.get("action", "")).strip()
         params = data.get("params") or {}
         req_device = str(data.get("device_id", "")).strip() or None
@@ -1296,6 +1428,34 @@ def register_utilities_routes(app, get_client_ip, get_user_folder, bump_global_o
             bump_global_ops(1)
 
         return jsonify({"job_id": job_id, "status": "queued"})
+
+    @bp.route("/api/utilities/open-local-dir", methods=["POST"])
+    def api_utilities_open_local_dir():
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({"error": "请求体必须为 JSON"}), 400
+        path = str(data.get("path", "")).strip()
+        device_id = str(data.get("device_id", "")).strip()
+        if not path:
+            return jsonify({"error": "缺少 path"}), 400
+        if _is_proxy_device_id(device_id):
+            try:
+                agent_id, _ = _parse_proxy_device_id(device_id)
+                _call_agent_api(
+                    agent_id=agent_id,
+                    path="/host/open-dir",
+                    payload={"path": path},
+                    timeout_sec=10,
+                    owner_ip=get_client_ip(),
+                )
+                return jsonify({"ok": True})
+            except Exception as exc:
+                return jsonify({"error": str(exc)}), 400
+        try:
+            _open_local_dir(path)
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({"ok": True})
 
     @bp.route("/api/utilities/check-app/history")
     def api_check_app_history():
