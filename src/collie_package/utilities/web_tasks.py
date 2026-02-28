@@ -621,7 +621,7 @@ def run_reclaim_ftrace_capture(
             hooks.warn(f"[reclaim] adb root 失败: {exc}")
 
     def _shell(cmd: str, timeout_sec: int = 10) -> str:
-        return adb_runner(["shell", "sh", "-c", cmd], timeout_sec)
+        return adb_runner(["shell", cmd], timeout_sec)
 
     trace_root = "/sys/kernel/tracing"
     root_probe = _shell(f"if [ -e {trace_root}/trace ]; then echo ok; else echo no; fi").strip()
